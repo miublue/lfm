@@ -62,8 +62,6 @@ void update();
 void render_files();
 void render_status();
 
-int ch = 0;
-
 void init_lfm(char *path) {
     lfm.path = NULL;
     lfm.hidden = SHOW_HIDDEN;
@@ -328,9 +326,7 @@ static inline char *_action_to_cstr() {
 
 void render_status() {
     char status[ALLOC_SIZE] = {0};
-    sprintf(status, " %d:%ld %s ",
-        // ch, keyname(ch),
-        lfm.cur+1, lfm.files_sz, lfm.path);
+    sprintf(status, " %d:%ld %s ", lfm.cur+1, lfm.files_sz, lfm.path);
     const size_t status_sz = strlen(status);
     attron(ATTR_STATUS);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
@@ -377,7 +373,8 @@ static void update_open(int ch) {
     if (update_none(ch)) return;
     if (ch == '\n') {
         char cmd[ALLOC_SIZE] = {0};
-        sprintf(cmd, "cd '%s'; %.*s '%s'", lfm.path, lfm.input.text_sz, lfm.input.text, lfm.files[lfm.cur].name);
+        sprintf(cmd, "cd '%s'; %.*s '%s'", lfm.path,
+            lfm.input.text_sz, lfm.input.text, lfm.files[lfm.cur].name);
         execute(cmd);
         update_list_files();
         lfm.action = ACTION_NONE;
@@ -390,9 +387,8 @@ static void update_move(int ch) {
     if (update_none(ch)) return;
     if (ch == '\n') {
         char cmd[ALLOC_SIZE] = {0};
-        char *move_or_copy = lfm.action == ACTION_MOVE? "mv" : "cp";
         sprintf(cmd, "cd '%s'; %s '%s' '%.*s'", lfm.path,
-            move_or_copy, lfm.files[lfm.cur].name,
+            (lfm.action == ACTION_MOVE)? "mv" : "cp", lfm.files[lfm.cur].name,
             lfm.input.text_sz, lfm.input.text);
         execute(cmd);
         update_list_files();
@@ -403,7 +399,7 @@ static void update_move(int ch) {
 }
 
 void update() {
-    ch = getch();
+    int ch = getch();
     switch (lfm.action) {
     case ACTION_FIND:
         return update_find(ch);
