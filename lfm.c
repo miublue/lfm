@@ -7,45 +7,9 @@
 #include <sys/types.h>
 #include <ncurses.h>
 #include "inputbox.h"
+#include "lfm.h"
 
-#ifndef _USE_COLOR
-#define _USE_COLOR 0
-#endif
-
-#define SHOW_HIDDEN 0
-
-#define CTRL(c) ((c) & 0x1f)
-#define ALLOC_SIZE 512
-
-#define COLOR_STATUS COLOR_RED
-#define COLOR_DIR    COLOR_BLUE
-#define COLOR_EXEC   COLOR_GREEN
-#define COLOR_LINK   COLOR_YELLOW
-
-#if _USE_COLOR
-#define ATTR_DIR    COLOR_PAIR(PAIR_DIR)|A_BOLD
-#define ATTR_EXEC   COLOR_PAIR(PAIR_EXEC)
-#define ATTR_LINK   COLOR_PAIR(PAIR_LINK)
-#define ATTR_FILE   COLOR_PAIR(PAIR_NORMAL)
-#define ATTR_STATUS COLOR_PAIR(PAIR_STATUS)|A_BOLD
-#else
-#define ATTR_DIR    A_BOLD
-#define ATTR_EXEC   A_BOLD
-#define ATTR_LINK   0
-#define ATTR_FILE   0
-#define ATTR_STATUS A_BOLD
-#endif
-
-enum { ACTION_NONE, ACTION_FIND, ACTION_EXEC, ACTION_OPEN, ACTION_MOVE, ACTION_COPY, ACTION_DELETE, };
-enum { PAIR_NORMAL, PAIR_STATUS = 1, PAIR_DIR, PAIR_EXEC, PAIR_LINK };
-enum { T_DIR, T_FILE, T_EXEC };
-
-typedef struct {
-    char name[ALLOC_SIZE];
-    char is_link, type;
-} file_t;
-
-struct {
+static struct {
     char *path;
     size_t files_sz, files_alloc;
     file_t *files;
@@ -53,31 +17,27 @@ struct {
     inputbox_t input;
 } lfm;
 
-void init_lfm(char *path);
-void quit_lfm();
-void init_curses();
-void quit_curses();
+static void _init_curses(void) {
+    initscr();
+    raw();
+    noecho();
+    curs_set(0);
+    keypad(stdscr, TRUE);
+#if _USE_COLOR
+    use_default_colors();
+    start_color();
+    init_pair(PAIR_NORMAL,           -1, -1);
+    init_pair(PAIR_STATUS, COLOR_STATUS, -1);
+    init_pair(PAIR_DIR,    COLOR_DIR,    -1);
+    init_pair(PAIR_EXEC,   COLOR_EXEC,   -1);
+    init_pair(PAIR_LINK,   COLOR_LINK,   -1);
+#endif
+}
 
-void list_files(char *path);
-void scroll_up();
-void scroll_down();
-void move_left();
-void move_right();
-void move_up();
-void move_down();
-void move_home();
-void move_end();
-void page_up();
-void page_down();
-void toggle_hidden();
-void find_next();
-void open_shell();
-void edit_file();
-void execute(char *cmd);
-
-void update();
-void render_files();
-void render_status();
+static void _quit_curses(void) {
+    endwin();
+    curs_set(1);
+}
 
 void init_lfm(char *path) {
     lfm.path = NULL;
@@ -88,7 +48,7 @@ void init_lfm(char *path) {
     input_reset(&lfm.input);
 }
 
-void quit_lfm() {
+void quit_lfm(void) {
     char path[ALLOC_SIZE] = {0};
     sprintf(path, "%s/.lfmsel", getenv("HOME"));
     FILE *file = fopen(path, "w");
@@ -96,7 +56,7 @@ void quit_lfm() {
     fclose(file);
     free(lfm.files);
     free(lfm.path);
-    quit_curses();
+    _quit_curses();
     exit(0);
 }
 
@@ -151,7 +111,7 @@ fail:
     exit(1);
 }
 
-static void update_list_files() {
+static void _update_list_files(void) {
     char path[ALLOC_SIZE] = {0};
     int cur = lfm.cur, off = lfm.off;
     sprintf(path, "%s", lfm.path);
@@ -164,37 +124,15 @@ static void update_list_files() {
     while (lfm.cur >= 0 && lfm.cur >= lfm.files_sz) move_up();
 }
 
-void init_curses() {
-    initscr();
-    raw();
-    noecho();
-    curs_set(0);
-    keypad(stdscr, TRUE);
-#if _USE_COLOR
-    use_default_colors();
-    start_color();
-    init_pair(PAIR_NORMAL, -1, -1);
-    init_pair(PAIR_STATUS, COLOR_STATUS,-1);
-    init_pair(PAIR_DIR,    COLOR_DIR,   -1);
-    init_pair(PAIR_EXEC,   COLOR_EXEC,  -1);
-    init_pair(PAIR_LINK,   COLOR_LINK,  -1);
-#endif
-}
-
-void quit_curses() {
-    endwin();
-    curs_set(1);
-}
-
-void scroll_up() {
+void scroll_up(void) {
     if (lfm.cur-lfm.off < 0 && lfm.off > 0) --lfm.off;
 }
 
-void scroll_down() {
+void scroll_down(void) {
     if (lfm.cur-lfm.off > lfm.wh-2) ++lfm.off;
 }
 
-void move_left() {
+void move_left(void) {
     char prev[ALLOC_SIZE] = {0}, path[ALLOC_SIZE] = {0}, found = 0;
     int sz = strlen(lfm.path)-1;
     for (; sz >= 0 && lfm.path[sz] != '/'; --sz);
@@ -211,7 +149,7 @@ void move_left() {
     if (!found) lfm.off = lfm.cur = 0;
 }
 
-void move_right() {
+void move_right(void) {
     file_t file = lfm.files[lfm.cur];
     if (file.type != T_DIR) return;
     char path[ALLOC_SIZE] = {0};
@@ -219,39 +157,39 @@ void move_right() {
     list_files(path);
 }
 
-void move_up() {
+void move_up(void) {
     if (lfm.cur == 0) return;
     --lfm.cur;
     scroll_up();
 }
 
-void move_down() {
+void move_down(void) {
     if (lfm.cur >= lfm.files_sz-1) return;
     ++lfm.cur;
     scroll_down();
 }
 
-void move_home() {
+void move_home(void) {
     lfm.cur = lfm.off = 0;
 }
 
-void move_end() {
+void move_end(void) {
     move_home();
     while (lfm.cur < lfm.files_sz-1) move_down();
 }
 
-void page_up() {
+void page_up(void) {
     for (int i = 0; i < lfm.wh-2; ++i) move_up();
 }
 
-void page_down() {
+void page_down(void) {
     for (int i = 0; i < lfm.wh-2; ++i) move_down();
 }
 
-void toggle_hidden() {
+void toggle_hidden(void) {
     char *file = strdup(lfm.files[lfm.cur].name);
     lfm.hidden = !lfm.hidden;
-    update_list_files();
+    _update_list_files();
     if (lfm.files_sz && strcmp(lfm.files[lfm.cur].name, file) != 0) {
         memcpy(lfm.input.text, file, (lfm.input.text_sz = strlen(file)));
         find_next();
@@ -259,7 +197,7 @@ void toggle_hidden() {
     free(file);
 }
 
-void find_next() {
+void find_next(void) {
     int found = 0, where = 0;
     char to_find[ALLOC_SIZE] = {0};
     memcpy(to_find, lfm.input.text, lfm.input.text_sz);
@@ -278,11 +216,11 @@ void find_next() {
     if (found) for (lfm.cur = lfm.off = 0; lfm.cur < where; move_down());
 }
 
-void open_shell() {
+void open_shell(void) {
     execute("$SHELL");
 }
 
-void edit_file() {
+void edit_file(void) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "$EDITOR '%s'", lfm.files[lfm.cur].name);
     execute(cmd);
@@ -291,13 +229,13 @@ void edit_file() {
 void execute(char *cmd) {
     char s[ALLOC_SIZE] = {0};
     sprintf(s, "cd '%s'; %s", lfm.path, cmd);
-    quit_curses();
+    _quit_curses();
     system(s);
-    update_list_files();
-    init_curses();
+    _update_list_files();
+    _init_curses();
 }
 
-static void render_file(int l) {
+static void _render_file(int l) {
     file_t file = lfm.files[l];
     char postfix[3] = {0};
     int attr = 0;
@@ -315,7 +253,7 @@ static void render_file(int l) {
     attroff(attr);
 }
 
-void render_files() {
+void render_files(void) {
     erase();
     if (lfm.files_sz == 0) {
         attron(A_REVERSE);
@@ -324,7 +262,7 @@ void render_files() {
     }
     for (int i = lfm.off; i < lfm.off+lfm.wh-1; ++i) {
         if (i >= lfm.files_sz) break;
-        render_file(i);
+        _render_file(i);
     }
 }
 
@@ -337,7 +275,7 @@ static char *action_to_cstr[] = {
     [ACTION_DELETE] = "Delete: ",
 };
 
-void render_status() {
+void render_status(void) {
     char status[ALLOC_SIZE] = {0};
     sprintf(status, " %d:%ld %s ", lfm.cur+1, lfm.files_sz, lfm.path);
     const size_t status_sz = strlen(status);
@@ -398,13 +336,13 @@ static inline void _update_action(int ch) {
     }
     if (ch == '\n') {
         action_funs[lfm.action](ch);
-        update_list_files();
+        _update_list_files();
         lfm.action = ACTION_NONE;
     }
     input_update(&lfm.input, ch);
 }
 
-void update() {
+void update(void) {
     int ch = getch();
     if (lfm.action != ACTION_NONE) return _update_action(ch);
     switch (ch) {
@@ -464,7 +402,7 @@ void update() {
 
 void main(int argc, char **argv) {
     init_lfm(argc < 2? "." : argv[1]);
-    init_curses();
+    _init_curses();
     for (;;) {
         getmaxyx(stdscr, lfm.wh, lfm.ww);
         render_files();
