@@ -1,5 +1,5 @@
-#ifndef _INPUTBOX_H
-#define _INPUTBOX_H
+#ifndef __INPUTBOX_H
+#define __INPUTBOX_H
 
 #include <inttypes.h>
 
