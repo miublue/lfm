@@ -1,11 +1,14 @@
 #ifndef __LFM_H
 #define __LFM_H
 
+#include <limits.h>
+
 #ifndef _USE_COLOR
 #define _USE_COLOR 0
 #endif
 
 #define SHOW_HIDDEN 0
+#define SELECTED_PREFIX " + "
 
 #define CTRL(c) ((c) & 0x1f)
 #define ALLOC_SIZE 512
@@ -34,7 +37,7 @@ enum { PAIR_NORMAL, PAIR_STATUS = 1, PAIR_DIR, PAIR_EXEC, PAIR_LINK };
 enum { T_DIR, T_FILE, T_EXEC };
 
 typedef struct {
-    char name[ALLOC_SIZE];
+    char path[PATH_MAX], name[PATH_MAX];
     char is_link, type;
 } file_t;
 
@@ -42,6 +45,9 @@ void init_lfm(char *path);
 void quit_lfm(void);
 
 void list_files(char *path);
+void select_file(file_t file);
+void select_all_files(bool add_all);
+
 void scroll_up(void);
 void scroll_down(void);
 void move_left(void);

@@ -9,10 +9,15 @@
 #include "inputbox.h"
 #include "lfm.h"
 
+typedef struct {
+    size_t sz, cap;
+    file_t *buf;
+} list_files_t;
+
 static struct {
     char *path;
-    size_t files_sz, files_alloc;
-    file_t *files;
+    list_files_t files;
+    list_files_t selection;
     int cur, off, ww, wh, hidden, action;
     inputbox_t input;
 } lfm;
@@ -39,45 +44,74 @@ static void _quit_curses(void) {
     curs_set(1);
 }
 
+static void _init_files(list_files_t *list) {
+    list->buf = malloc(sizeof(file_t) * (list->cap = ALLOC_SIZE));
+    list->sz = 0;
+}
+
+static void _free_files(list_files_t *list) {
+    free(list->buf);
+    list->sz = list->cap = 0;
+}
+
+static void _append_file(list_files_t *list, file_t file) {
+    if (list->sz >= list->cap)
+        list->buf = realloc(list->buf, sizeof(file_t) * (list->cap += ALLOC_SIZE));
+    list->buf[list->sz++] = file;
+}
+
+// return index of file if selected, else return -1
+static int _find_file(list_files_t *list, file_t file) {
+    for (int i = 0; i < list->sz; ++i) {
+        file_t *f = &list->buf[i];
+        if (!strcmp(f->path, file.path) && !strcmp(f->name, file.name)) return i;
+    }
+    return -1;
+}
+
+static void _remove_file(list_files_t *list, int idx) {
+    if (list->sz == 0 || idx >= list->sz) return;
+    --list->sz;
+    for (int i = idx; i < list->sz; ++i) list->buf[i] = list->buf[i+1];
+}
+
 void init_lfm(char *path) {
     lfm.path = NULL;
     lfm.hidden = SHOW_HIDDEN;
-    lfm.files = malloc(sizeof(file_t) * (lfm.files_alloc = ALLOC_SIZE));
     lfm.action = ACTION_NONE;
+    _init_files(&lfm.files);
+    _init_files(&lfm.selection);
     list_files(path);
     input_reset(&lfm.input);
 }
 
 void quit_lfm(void) {
-    char path[ALLOC_SIZE] = {0};
+    char path[PATH_MAX] = {0};
     sprintf(path, "%s/.lfmsel", getenv("HOME"));
     FILE *file = fopen(path, "w");
     fwrite(lfm.path, strlen(lfm.path), 1, file);
     fclose(file);
-    free(lfm.files);
+    _free_files(&lfm.files);
+    _free_files(&lfm.selection);
     free(lfm.path);
     _quit_curses();
     exit(0);
 }
 
 static file_t _stat_file(char *name) {
-    char path[ALLOC_SIZE] = {0};
+    char path[PATH_MAX] = {0};
     sprintf(path, "%s/%s", lfm.path, name);
     struct stat file_stat;
     stat(path, &file_stat);
     file_t file = {
         .is_link = S_ISLNK(file_stat.st_mode),
         .name = {0},
+        .path = {0},
     };
     file.type = S_ISDIR(file_stat.st_mode)? T_DIR : (file_stat.st_mode & S_IXUSR)? T_EXEC : T_FILE;
     memcpy(file.name, name, strlen(name));
+    memcpy(file.path, lfm.path, strlen(lfm.path));
     return file;
-}
-
-static void _append_file(file_t f) {
-    if (lfm.files_sz >= lfm.files_alloc)
-        lfm.files = realloc(lfm.files, sizeof(file_t) * (lfm.files_alloc += ALLOC_SIZE));
-    lfm.files[lfm.files_sz++] = f;
 }
 
 static int _compare_files(const void *a_ptr, const void *b_ptr) {
@@ -91,7 +125,7 @@ void list_files(char *path) {
     if (lfm.path) free(lfm.path);
     lfm.path = realpath(path, NULL);
     if (!lfm.path) goto fail;
-    lfm.files_sz = lfm.cur = lfm.off = 0;
+    lfm.files.sz = lfm.cur = lfm.off = 0;
 
     struct dirent *ent = NULL;
     DIR *dir = opendir(lfm.path);
@@ -100,10 +134,10 @@ void list_files(char *path) {
         if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
         if (!lfm.hidden && ent->d_name[0] == '.') continue;
         file_t file = _stat_file(ent->d_name);
-        _append_file(file);
+        _append_file(&lfm.files, file);
     }
 
-    qsort(lfm.files, lfm.files_sz, sizeof(file_t), &_compare_files);
+    qsort(lfm.files.buf, lfm.files.sz, sizeof(file_t), &_compare_files);
     closedir(dir);
     return;
 fail:
@@ -111,17 +145,31 @@ fail:
     exit(1);
 }
 
+void select_file(file_t file) {
+    int idx = _find_file(&lfm.selection, file);
+    if (idx != -1) _remove_file(&lfm.selection, idx);
+    else _append_file(&lfm.selection, file);
+}
+
+void select_all_files(bool add_all) {
+    for (int i = 0; i < lfm.files.sz; ++i) {
+        if (_find_file(&lfm.selection, lfm.files.buf[i]) == -1 || !add_all) {
+            select_file(lfm.files.buf[i]);
+        }
+    }
+}
+
 static void _update_list_files(void) {
-    char path[ALLOC_SIZE] = {0};
+    char path[PATH_MAX] = {0};
     int cur = lfm.cur, off = lfm.off;
     sprintf(path, "%s", lfm.path);
     list_files(path);
-    if (!lfm.files_sz) {
+    if (!lfm.files.sz) {
         lfm.cur = lfm.off = 0;
         return;
     }
     lfm.cur = cur; lfm.off = off;
-    while (lfm.cur >= 0 && lfm.cur >= lfm.files_sz) move_up();
+    while (lfm.cur >= 0 && lfm.cur >= lfm.files.sz) move_up();
 }
 
 void scroll_up(void) {
@@ -133,14 +181,14 @@ void scroll_down(void) {
 }
 
 void move_left(void) {
-    char prev[ALLOC_SIZE] = {0}, path[ALLOC_SIZE] = {0}, found = 0;
+    char prev[PATH_MAX] = {0}, path[PATH_MAX] = {0}, found = 0;
     int sz = strlen(lfm.path)-1;
     for (; sz >= 0 && lfm.path[sz] != '/'; --sz);
     memcpy(prev, lfm.path+sz+1, strlen(lfm.path)-sz);
     sprintf(path, "%s/..", lfm.path);
     list_files(path);
-    for (int i = 0; i < lfm.files_sz; ++i) {
-        if (!strcmp(lfm.files[i].name, prev)) {
+    for (int i = 0; i < lfm.files.sz; ++i) {
+        if (!strcmp(lfm.files.buf[i].name, prev)) {
             found = 1;
             break;
         }
@@ -150,9 +198,9 @@ void move_left(void) {
 }
 
 void move_right(void) {
-    file_t file = lfm.files[lfm.cur];
+    file_t file = lfm.files.buf[lfm.cur];
     if (file.type != T_DIR) return;
-    char path[ALLOC_SIZE] = {0};
+    char path[PATH_MAX] = {0};
     sprintf(path, "%s/%s", lfm.path, file.name);
     list_files(path);
 }
@@ -164,7 +212,7 @@ void move_up(void) {
 }
 
 void move_down(void) {
-    if (lfm.cur >= lfm.files_sz-1) return;
+    if (lfm.cur >= lfm.files.sz-1) return;
     ++lfm.cur;
     scroll_down();
 }
@@ -175,7 +223,7 @@ void move_home(void) {
 
 void move_end(void) {
     move_home();
-    while (lfm.cur < lfm.files_sz-1) move_down();
+    while (lfm.cur < lfm.files.sz-1) move_down();
 }
 
 void page_up(void) {
@@ -187,10 +235,10 @@ void page_down(void) {
 }
 
 void toggle_hidden(void) {
-    char *file = strdup(lfm.files[lfm.cur].name);
+    char *file = strdup(lfm.files.buf[lfm.cur].name);
     lfm.hidden = !lfm.hidden;
     _update_list_files();
-    if (lfm.files_sz && strcmp(lfm.files[lfm.cur].name, file) != 0) {
+    if (lfm.files.sz && strcmp(lfm.files.buf[lfm.cur].name, file) != 0) {
         memcpy(lfm.input.text, file, (lfm.input.text_sz = strlen(file)));
         find_next();
     }
@@ -199,16 +247,16 @@ void toggle_hidden(void) {
 
 void find_next(void) {
     int found = 0, where = 0;
-    char to_find[ALLOC_SIZE] = {0};
+    char to_find[PATH_MAX] = {0};
     memcpy(to_find, lfm.input.text, lfm.input.text_sz);
-    for (where = lfm.cur+1; where < lfm.files_sz; ++where) {
-        if (strstr(lfm.files[where].name, to_find)) {
+    for (where = lfm.cur+1; where < lfm.files.sz; ++where) {
+        if (strstr(lfm.files.buf[where].name, to_find)) {
             found = 1; break;
         }
     }
     if (!found) {
         for (where = 0; where < lfm.cur; ++where) {
-            if (strstr(lfm.files[where].name, to_find)) {
+            if (strstr(lfm.files.buf[where].name, to_find)) {
                 found = 1; break;
             }
         }
@@ -222,7 +270,7 @@ void open_shell(void) {
 
 void edit_file(void) {
     char cmd[ALLOC_SIZE] = {0};
-    sprintf(cmd, "$EDITOR '%s'", lfm.files[lfm.cur].name);
+    sprintf(cmd, "$EDITOR '%s'", lfm.files.buf[lfm.cur].name);
     execute(cmd);
 }
 
@@ -236,7 +284,8 @@ void execute(char *cmd) {
 }
 
 static void _render_file(int l) {
-    file_t file = lfm.files[l];
+    file_t file = lfm.files.buf[l];
+    char *prefix = (_find_file(&lfm.selection, file) != -1)? SELECTED_PREFIX : "";
     char postfix[3] = {0};
     int attr = 0;
 
@@ -249,19 +298,19 @@ static void _render_file(int l) {
     if (file.is_link) { attr |= ATTR_LINK; strcat(postfix, "@"); }
 
     attron(attr);
-    mvprintw(l-lfm.off, 1, "%s%s", file.name, postfix);
+    mvprintw(l-lfm.off, 1, "%s%s%s", prefix, file.name, postfix);
     attroff(attr);
 }
 
 void render_files(void) {
     erase();
-    if (lfm.files_sz == 0) {
+    if (lfm.files.sz == 0) {
         attron(A_REVERSE);
         mvprintw(0, 0, "  empty  ");
         attroff(A_REVERSE);
     }
     for (int i = lfm.off; i < lfm.off+lfm.wh-1; ++i) {
-        if (i >= lfm.files_sz) break;
+        if (i >= lfm.files.sz) break;
         _render_file(i);
     }
 }
@@ -277,7 +326,7 @@ static char *action_to_cstr[] = {
 
 void render_status(void) {
     char status[ALLOC_SIZE] = {0};
-    sprintf(status, " %d:%ld %s ", lfm.cur+1, lfm.files_sz, lfm.path);
+    sprintf(status, " %d:%ld %s ", lfm.cur+1, lfm.files.sz, lfm.path);
     const size_t status_sz = strlen(status);
     attron(ATTR_STATUS);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
@@ -302,14 +351,14 @@ static inline void _action_exec(int ch) {
 static inline void _action_open(int ch) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "cd '%s'; %.*s '%s'", lfm.path,
-        lfm.input.text_sz, lfm.input.text, lfm.files[lfm.cur].name);
+        lfm.input.text_sz, lfm.input.text, lfm.files.buf[lfm.cur].name);
     execute(cmd);
 }
 
 static inline void _action_move(int ch) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "cd '%s'; %s '%s' '%.*s'", lfm.path,
-        (lfm.action == ACTION_MOVE)? "mv -f" : "cp -rf", lfm.files[lfm.cur].name,
+        (lfm.action == ACTION_MOVE)? "mv -f" : "cp -rf", lfm.files.buf[lfm.cur].name,
         lfm.input.text_sz, lfm.input.text);
     execute(cmd);
 }
@@ -318,6 +367,30 @@ static inline void _action_delete(int ch) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "cd '%s'; rm -rf '%.*s'", lfm.path, lfm.input.text_sz, lfm.input.text);
     execute(cmd);
+}
+
+static inline void _execute_on_selection(char *op, bool to_path) {
+    const int sz = lfm.selection.sz*PATH_MAX*2;
+    char *cmd = calloc(sz, sizeof(char));
+    sprintf(cmd, "cd '%s'; %s", lfm.path, op);
+    for (int i = 0; i < lfm.selection.sz; ++i) {
+        file_t *file = &lfm.selection.buf[i];
+        sprintf(cmd, "%s '%s/%s'", cmd, file->path, file->name);
+    }
+    if (to_path) sprintf(cmd, "%s '%s'", cmd, lfm.path);
+    execute(cmd);
+    free(cmd);
+}
+
+
+static inline void _move_selection(bool copy) {
+    _execute_on_selection(copy? "cp -rf" : "mv -f", true);
+    lfm.selection.sz = 0;
+}
+
+static inline void _delete_selection(void) {
+    _execute_on_selection("rm -rf", false);
+    lfm.selection.sz = 0;
 }
 
 static void (*action_funs[])(int) = {
@@ -358,21 +431,24 @@ void update(void) {
         lfm.action = ACTION_EXEC;
         return input_reset(&lfm.input);
     case 'o': case 'O': case CTRL('o'):
-        if (!lfm.files_sz) break;
+        if (!lfm.files.sz) break;
         lfm.action = ACTION_OPEN;
         return input_reset(&lfm.input);
     case 'v': case 'V': case 'm': case 'M': case 'r': case 'R':
-        if (!lfm.files_sz) break;
+        if (lfm.selection.sz) return _move_selection(false);
+        if (!lfm.files.sz) break;
         lfm.action = ACTION_MOVE;
-        return input_set(&lfm.input, lfm.files[lfm.cur].name, strlen(lfm.files[lfm.cur].name));
+        return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case 'c': case 'C':
-        if (!lfm.files_sz) break;
+        if (lfm.selection.sz) return _move_selection(true);
+        if (!lfm.files.sz) break;
         lfm.action = ACTION_COPY;
-        return input_set(&lfm.input, lfm.files[lfm.cur].name, strlen(lfm.files[lfm.cur].name));
+        return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case 'd': case 'D': case 'x': case 'X':
-        if (!lfm.files_sz) break;
+        if (lfm.selection.sz) return _delete_selection();
+        if (!lfm.files.sz) break;
         lfm.action = ACTION_DELETE;
-        return input_set(&lfm.input, lfm.files[lfm.cur].name, strlen(lfm.files[lfm.cur].name));
+        return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case KEY_LEFT: case 'h':
         return move_left();
     case KEY_RIGHT: case 'l':
@@ -394,8 +470,20 @@ void update(void) {
     case 's': case 'S': case '!':
         return open_shell();
     case 'e': case 'E':
-        if (!lfm.files_sz) break;
+        if (!lfm.files.sz) break;
         return edit_file();
+    case ' ':
+        if (!lfm.files.sz) break;
+        select_file(lfm.files.buf[lfm.cur]);
+        if (lfm.cur+1 < lfm.files.sz) ++lfm.cur;
+        break;
+    case 'a': case 'A':
+        return select_all_files(true);
+    case 'i': case 'I':
+        return select_all_files(false);
+    case 'u': case 'U':
+        lfm.selection.sz = 0;
+        break;
     default: break;
     }
 }
