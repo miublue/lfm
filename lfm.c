@@ -326,7 +326,7 @@ static char *action_to_cstr[] = {
 
 void render_status(void) {
     char status[ALLOC_SIZE] = {0};
-    sprintf(status, " %d:%ld %s ", lfm.cur+1, lfm.files.sz, lfm.path);
+    sprintf(status, " %d %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, lfm.path);
     const size_t status_sz = strlen(status);
     attron(ATTR_STATUS);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
