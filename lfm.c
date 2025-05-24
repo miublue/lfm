@@ -370,6 +370,7 @@ static inline void _action_delete(int ch) {
 }
 
 static inline void _execute_on_selection(char *op, bool to_path) {
+    // XXX: ask for permission before performing action on selection
     const int sz = lfm.selection.sz*PATH_MAX*2;
     char *cmd = calloc(sz, sizeof(char));
     sprintf(cmd, "cd '%s'; %s", lfm.path, op);
@@ -384,12 +385,12 @@ static inline void _execute_on_selection(char *op, bool to_path) {
 
 
 static inline void _move_selection(bool copy) {
-    _execute_on_selection(copy? "cp -rf" : "mv -f", true);
+    _execute_on_selection(copy? "cp -rf" : "mv -f", TRUE);
     lfm.selection.sz = 0;
 }
 
 static inline void _delete_selection(void) {
-    _execute_on_selection("rm -rf", false);
+    _execute_on_selection("rm -rf", FALSE);
     lfm.selection.sz = 0;
 }
 
@@ -418,6 +419,7 @@ static inline void _update_action(int ch) {
 void update(void) {
     int ch = getch();
     if (lfm.action != ACTION_NONE) return _update_action(ch);
+    // XXX: allow for easily customizing keys
     switch (ch) {
     case 'q': case 'Q': case CTRL('q'):
         return quit_lfm();
@@ -435,12 +437,12 @@ void update(void) {
         lfm.action = ACTION_OPEN;
         return input_reset(&lfm.input);
     case 'v': case 'V': case 'm': case 'M': case 'r': case 'R':
-        if (lfm.selection.sz) return _move_selection(false);
+        if (lfm.selection.sz) return _move_selection(FALSE);
         if (!lfm.files.sz) break;
         lfm.action = ACTION_MOVE;
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case 'c': case 'C':
-        if (lfm.selection.sz) return _move_selection(true);
+        if (lfm.selection.sz) return _move_selection(TRUE);
         if (!lfm.files.sz) break;
         lfm.action = ACTION_COPY;
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
@@ -478,9 +480,9 @@ void update(void) {
         if (lfm.cur+1 < lfm.files.sz) ++lfm.cur;
         break;
     case 'a': case 'A':
-        return select_all_files(true);
+        return select_all_files(TRUE);
     case 'i': case 'I':
-        return select_all_files(false);
+        return select_all_files(FALSE);
     case 'u': case 'U':
         lfm.selection.sz = 0;
         break;
