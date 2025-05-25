@@ -10,6 +10,6 @@ make install
 make install USECOLOR=1
 ```
 
-## Screenshots
+## Screenshot
 ![screenshot](https://i.imgur.com/lTrjxOY.png)
 
