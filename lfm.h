@@ -62,6 +62,7 @@ void toggle_hidden(void);
 void find_next(void);
 void open_shell(void);
 void edit_file(void);
+void reload_files(void);
 void execute(char *cmd);
 
 void update(void);

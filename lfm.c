@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ncurses.h>
@@ -125,6 +126,7 @@ void list_files(char *path) {
     if (lfm.path) free(lfm.path);
     lfm.path = realpath(path, NULL);
     if (!lfm.path) goto fail;
+    chdir(lfm.path);
     lfm.files.sz = lfm.cur = lfm.off = 0;
 
     struct dirent *ent = NULL;
@@ -159,7 +161,7 @@ void select_all_files(bool add_all) {
     }
 }
 
-static void _update_list_files(void) {
+void reload_files(void) {
     char path[PATH_MAX] = {0};
     int cur = lfm.cur, off = lfm.off;
     sprintf(path, "%s", lfm.path);
@@ -237,7 +239,7 @@ void page_down(void) {
 void toggle_hidden(void) {
     char *file = strdup(lfm.files.buf[lfm.cur].name);
     lfm.hidden = !lfm.hidden;
-    _update_list_files();
+    reload_files();
     if (lfm.files.sz && strcmp(lfm.files.buf[lfm.cur].name, file) != 0) {
         memcpy(lfm.input.text, file, (lfm.input.text_sz = strlen(file)));
         find_next();
@@ -275,11 +277,9 @@ void edit_file(void) {
 }
 
 void execute(char *cmd) {
-    char s[ALLOC_SIZE] = {0};
-    sprintf(s, "cd '%s'; %s", lfm.path, cmd);
     _quit_curses();
-    system(s);
-    _update_list_files();
+    system(cmd);
+    reload_files();
     _init_curses();
 }
 
@@ -344,20 +344,20 @@ static inline void _action_find(int ch) {
 
 static inline void _action_exec(int ch) {
     char cmd[ALLOC_SIZE] = {0};
-    sprintf(cmd, "cd '%s'; %.*s", lfm.path, lfm.input.text_sz, lfm.input.text);
+    sprintf(cmd, "%.*s", lfm.input.text_sz, lfm.input.text);
     execute(cmd);
 }
 
 static inline void _action_open(int ch) {
     char cmd[ALLOC_SIZE] = {0};
-    sprintf(cmd, "cd '%s'; %.*s '%s'", lfm.path,
+    sprintf(cmd, "%.*s '%s'",
         lfm.input.text_sz, lfm.input.text, lfm.files.buf[lfm.cur].name);
     execute(cmd);
 }
 
 static inline void _action_move(int ch) {
     char cmd[ALLOC_SIZE] = {0};
-    sprintf(cmd, "cd '%s'; %s '%s' '%.*s'", lfm.path,
+    sprintf(cmd, "%s '%s' '%.*s'",
         (lfm.action == ACTION_MOVE)? "mv -f" : "cp -rf", lfm.files.buf[lfm.cur].name,
         lfm.input.text_sz, lfm.input.text);
     execute(cmd);
@@ -365,7 +365,7 @@ static inline void _action_move(int ch) {
 
 static inline void _action_delete(int ch) {
     char cmd[ALLOC_SIZE] = {0};
-    sprintf(cmd, "cd '%s'; rm -rf '%.*s'", lfm.path, lfm.input.text_sz, lfm.input.text);
+    sprintf(cmd, "rm -rf '%.*s'", lfm.input.text_sz, lfm.input.text);
     execute(cmd);
 }
 
@@ -373,7 +373,7 @@ static inline void _execute_on_selection(char *op, bool to_path) {
     // XXX: ask for permission before performing action on selection
     const int sz = lfm.selection.sz*PATH_MAX*2;
     char *cmd = calloc(sz, sizeof(char));
-    sprintf(cmd, "cd '%s'; %s", lfm.path, op);
+    sprintf(cmd, "%s", op);
     for (int i = 0; i < lfm.selection.sz; ++i) {
         file_t *file = &lfm.selection.buf[i];
         sprintf(cmd, "%s '%s/%s'", cmd, file->path, file->name);
@@ -410,7 +410,7 @@ static inline void _update_action(int ch) {
     }
     if (ch == '\n') {
         action_funs[lfm.action](ch);
-        _update_list_files();
+        reload_files();
         lfm.action = ACTION_NONE;
     }
     input_update(&lfm.input, ch);
@@ -423,6 +423,9 @@ void update(void) {
     switch (ch) {
     case 'q': case 'Q': case CTRL('q'):
         return quit_lfm();
+    case CTRL('r'):
+        reload_files();
+        return;
     case CTRL('f'): case '/':
         lfm.action = ACTION_FIND;
         return input_reset(&lfm.input);
