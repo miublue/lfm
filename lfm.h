@@ -59,11 +59,11 @@ void move_end(void);
 void page_up(void);
 void page_down(void);
 void toggle_hidden(void);
-void find_next(void);
 void open_shell(void);
 void edit_file(void);
 void reload_files(void);
 void execute(char *cmd);
+void find_next(char *str, int sz);
 
 void update(void);
 void render_files(void);

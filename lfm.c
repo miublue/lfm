@@ -242,17 +242,15 @@ void toggle_hidden(void) {
     char *file = strdup(lfm.files.buf[lfm.cur].name);
     lfm.hidden = !lfm.hidden;
     reload_files();
-    if (lfm.files.sz && strcmp(lfm.files.buf[lfm.cur].name, file) != 0) {
-        memcpy(lfm.input.text, file, (lfm.input.text_sz = strlen(file)));
-        find_next();
-    }
+    if (lfm.files.sz && strcmp(lfm.files.buf[lfm.cur].name, file) != 0)
+        find_next(file, strlen(file));
     free(file);
 }
 
-void find_next(void) {
-    int found = 0, where = 0;
+void find_next(char *str, int sz) {
     char to_find[PATH_MAX] = {0};
-    memcpy(to_find, lfm.input.text, lfm.input.text_sz);
+    memcpy(to_find, str, sz);
+    int found = 0, where = 0;
     for (where = lfm.cur+1; where < lfm.files.sz; ++where) {
         if (strstr(lfm.files.buf[where].name, to_find)) {
             found = 1; break;
@@ -341,7 +339,7 @@ void render_status(void) {
 }
 
 static inline void _action_find(int ch) {
-    if (lfm.input.text_sz) find_next();
+    if (lfm.input.text_sz) find_next(lfm.input.text, lfm.input.text_sz);
 }
 
 static inline void _action_exec(int ch) {
@@ -441,11 +439,11 @@ void update(void) {
     case CTRL('r'):
         reload_files();
         return;
-    case CTRL('f'): case '/':
+    case CTRL('f'): case 'f': case 'F': case '/':
         lfm.action = ACTION_FIND;
         return input_reset(&lfm.input);
     case CTRL('n'): case 'n':
-        if (lfm.input.text_sz) find_next();
+        if (lfm.input.text_sz) find_next(lfm.input.text, lfm.input.text_sz);
         return;
     case ':':
         lfm.action = ACTION_EXEC;
