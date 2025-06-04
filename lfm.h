@@ -1,36 +1,14 @@
 #ifndef __LFM_H
 #define __LFM_H
 
-#include <limits.h>
-
 #ifndef _USE_COLOR
 #define _USE_COLOR 0
 #endif
 
-#define SHOW_HIDDEN 0
-#define SELECTED_PREFIX " + "
-
 #define CTRL(c) ((c) & 0x1f)
 #define ALLOC_SIZE 512
 
-#define COLOR_STATUS COLOR_RED
-#define COLOR_DIR    COLOR_BLUE
-#define COLOR_EXEC   COLOR_GREEN
-#define COLOR_LINK   COLOR_YELLOW
-
-#if _USE_COLOR
-#define ATTR_DIR    COLOR_PAIR(PAIR_DIR)|A_BOLD
-#define ATTR_EXEC   COLOR_PAIR(PAIR_EXEC)
-#define ATTR_LINK   COLOR_PAIR(PAIR_LINK)
-#define ATTR_FILE   COLOR_PAIR(PAIR_NORMAL)
-#define ATTR_STATUS COLOR_PAIR(PAIR_STATUS)|A_BOLD
-#else
-#define ATTR_DIR    A_BOLD
-#define ATTR_EXEC   A_BOLD
-#define ATTR_LINK   0
-#define ATTR_FILE   0
-#define ATTR_STATUS A_BOLD
-#endif
+#include "config.h"
 
 enum { ACTION_NONE, ACTION_FIND, ACTION_EXEC, ACTION_OPEN, ACTION_MOVE, ACTION_COPY, ACTION_DELETE, NUM_ACTIONS };
 enum { PAIR_NORMAL, PAIR_STATUS = 1, PAIR_DIR, PAIR_EXEC, PAIR_LINK };

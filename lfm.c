@@ -10,8 +10,6 @@
 #include "inputbox.h"
 #include "lfm.h"
 
-#define SELECTION_TEXT "selection"
-
 typedef struct {
     size_t sz, cap;
     file_t *buf;
@@ -285,17 +283,17 @@ void execute(char *cmd) {
 
 static void _render_file(int l) {
     file_t file = lfm.files.buf[l];
-    char *prefix = (_find_file(&lfm.selection, file) != -1)? SELECTED_PREFIX : "";
+    char *prefix = (_find_file(&lfm.selection, file) != -1)? SELECTION_PREFIX : "";
     char postfix[3] = {0};
     int attr = 0;
 
     if (lfm.cur == l) attr |= A_REVERSE;
     switch (file.type) {
-    case T_DIR:  attr |= ATTR_DIR;  strcat(postfix, "/"); break;
-    case T_EXEC: attr |= ATTR_EXEC; strcat(postfix, "*"); break;
-    default:     attr |= ATTR_FILE; break;
+    case T_DIR:  attr |= ATTR_DIR|COLOR_PAIR(PAIR_DIR);   strcat(postfix, "/"); break;
+    case T_EXEC: attr |= ATTR_EXEC|COLOR_PAIR(PAIR_EXEC); strcat(postfix, "*"); break;
+    default:     attr |= ATTR_FILE|COLOR_PAIR(PAIR_NORMAL); break;
     }
-    if (file.is_link) { attr |= ATTR_LINK; strcat(postfix, "@"); }
+    if (file.is_link) { attr |= ATTR_LINK|COLOR_PAIR(PAIR_LINK); strcat(postfix, "@"); }
 
     attron(attr);
     mvprintw(l-lfm.off, 1, "%s%s%s", prefix, file.name, postfix);
@@ -325,17 +323,18 @@ static char *action_to_cstr[] = {
 };
 
 void render_status(void) {
+    const int attr = ATTR_STATUS|COLOR_PAIR(COLOR_STATUS);
     char status[ALLOC_SIZE] = {0};
-    sprintf(status, " %d %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, lfm.path);
+    sprintf(status, " %ld %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, lfm.path);
     const size_t status_sz = strlen(status);
-    attron(ATTR_STATUS);
+    attron(attr);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
     if (lfm.action != ACTION_NONE) {
         char *astr = action_to_cstr[lfm.action];
         mvprintw(lfm.wh-1, 0, "%s", astr);
         input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-status_sz-strlen(astr));
     }
-    attroff(ATTR_STATUS);
+    attroff(attr);
 }
 
 static inline void _action_find(int ch) {
@@ -370,7 +369,6 @@ static inline void _action_delete(int ch) {
 }
 
 static inline void _execute_on_selection(char *op, bool to_path) {
-    // XXX: ask for permission before performing action on selection
     const int sz = lfm.selection.sz*PATH_MAX*2;
     char *cmd = calloc(sz, sizeof(char));
     sprintf(cmd, "%s", op);
@@ -432,74 +430,73 @@ static inline void _update_action(int ch) {
 void update(void) {
     int ch = getch();
     if (lfm.action != ACTION_NONE) return _update_action(ch);
-    // XXX: allow for easily customizing keys
     switch (ch) {
-    case 'q': case 'Q': case CTRL('q'):
+    case CTRL('q'): case KEY_QUIT:
         return quit_lfm();
-    case CTRL('r'):
+    case CTRL('r'): case KEY_RELOAD:
         reload_files();
         return;
-    case CTRL('f'): case 'f': case 'F': case '/':
+    case KEY_MODE_FIND:
         lfm.action = ACTION_FIND;
         return input_reset(&lfm.input);
-    case CTRL('n'): case 'n':
+    case KEY_FIND_NEXT:
         if (lfm.input.text_sz) find_next(lfm.input.text, lfm.input.text_sz);
         return;
-    case ':':
+    case KEY_MODE_EXEC:
         lfm.action = ACTION_EXEC;
         return input_reset(&lfm.input);
-    case 'o': case 'O': case CTRL('o'):
+    case KEY_MODE_OPEN:
         if (!lfm.files.sz) break;
         lfm.action = ACTION_OPEN;
         return input_reset(&lfm.input);
-    case 'v': case 'V': case 'm': case 'M': case 'r': case 'R':
+    case KEY_MODE_MOVE:
         if (!lfm.files.sz && !lfm.selection.sz) break;
         lfm.action = ACTION_MOVE;
         if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
-    case 'c': case 'C':
+    case KEY_MODE_COPY:
         if (!lfm.files.sz && !lfm.selection.sz) break;
         lfm.action = ACTION_COPY;
         if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
-    case 'd': case 'D': case 'x': case 'X':
+    case KEY_MODE_DELETE:
         if (!lfm.files.sz && !lfm.selection.sz) break;
         lfm.action = ACTION_DELETE;
         if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
-    case KEY_LEFT: case 'h':
+    case KEY_LEFT: case KEY_NAVBACK:
         return move_left();
-    case KEY_RIGHT: case 'l':
+    case KEY_RIGHT: case KEY_NAVNEXT:
         return move_right();
-    case KEY_UP: case 'k':
+    case KEY_UP: case KEY_NAVUP:
         return move_up();
-    case KEY_DOWN: case 'j':
+    case KEY_DOWN: case KEY_NAVDOWN:
         return move_down();
-    case KEY_HOME: case 'g':
+    case KEY_HOME: case KEY_NAVTOP:
         return move_home();
-    case KEY_END: case 'G':
+    case KEY_END: case KEY_NAVEND:
         return move_end();
     case KEY_PPAGE:
         return page_up();
     case KEY_NPAGE:
         return page_down();
-    case '.':
+    case KEY_SHOW_HIDDEN:
         return toggle_hidden();
-    case 's': case 'S': case '!':
+    case KEY_SHELL:
         return open_shell();
-    case 'e': case 'E':
+    case KEY_EDIT_FILE:
         if (!lfm.files.sz) break;
         return edit_file();
-    case ' ':
+    case KEY_SELECT_FILE:
         if (!lfm.files.sz) break;
         select_file(lfm.files.buf[lfm.cur]);
         if (lfm.cur+1 < lfm.files.sz) ++lfm.cur;
         break;
-    case 'a': case 'A':
+    case KEY_SELECT_ALL:
         return select_all_files(TRUE);
-    case 'i': case 'I':
+    case KEY_SELECT_INVERT:
         return select_all_files(FALSE);
-    case 'u': case 'U':
+    case KEY_SELECT_EMPTY:
         lfm.selection.sz = 0;
         break;
     default: break;
