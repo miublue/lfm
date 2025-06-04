@@ -10,6 +10,8 @@
 #include "inputbox.h"
 #include "lfm.h"
 
+#define SELECTION_TEXT "selection"
+
 typedef struct {
     size_t sz, cap;
     file_t *buf;
@@ -384,17 +386,23 @@ static inline void _execute_on_selection(char *op, bool to_path) {
 }
 
 
-static inline void _move_selection(bool copy) {
-    _execute_on_selection(copy? "cp -rf" : "mv -f", TRUE);
+static inline void _action_move_selected(void) {
+    _execute_on_selection(lfm.action == ACTION_COPY? "cp -rf" : "mv -f", TRUE);
     lfm.selection.sz = 0;
 }
 
-static inline void _delete_selection(void) {
+static inline void _action_delete_selected(void) {
     _execute_on_selection("rm -rf", FALSE);
     lfm.selection.sz = 0;
 }
 
-static void (*action_funs[])(int) = {
+static void (*sel_action_funs[NUM_ACTIONS])(void) = {
+    [ACTION_MOVE] = _action_move_selected,
+    [ACTION_COPY] = _action_move_selected,
+    [ACTION_DELETE] = _action_delete_selected,
+};
+
+static void (*action_funs[NUM_ACTIONS])(int) = {
     [ACTION_FIND] = _action_find,
     [ACTION_EXEC] = _action_exec,
     [ACTION_OPEN] = _action_open,
@@ -408,7 +416,14 @@ static inline void _update_action(int ch) {
         lfm.action = ACTION_NONE;
         return;
     }
-    if (ch == '\n') {
+    if (lfm.selection.sz && sel_action_funs[lfm.action]) {
+        if (ch == '\n' || ch == 'y' || ch == 'Y') {
+            sel_action_funs[lfm.action]();
+            reload_files();
+        }
+        lfm.action = ACTION_NONE;
+        return;
+    } else if (ch == '\n') {
         action_funs[lfm.action](ch);
         reload_files();
         lfm.action = ACTION_NONE;
@@ -440,19 +455,19 @@ void update(void) {
         lfm.action = ACTION_OPEN;
         return input_reset(&lfm.input);
     case 'v': case 'V': case 'm': case 'M': case 'r': case 'R':
-        if (lfm.selection.sz) return _move_selection(FALSE);
-        if (!lfm.files.sz) break;
+        if (!lfm.files.sz && !lfm.selection.sz) break;
         lfm.action = ACTION_MOVE;
+        if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case 'c': case 'C':
-        if (lfm.selection.sz) return _move_selection(TRUE);
-        if (!lfm.files.sz) break;
+        if (!lfm.files.sz && !lfm.selection.sz) break;
         lfm.action = ACTION_COPY;
+        if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case 'd': case 'D': case 'x': case 'X':
-        if (lfm.selection.sz) return _delete_selection();
-        if (!lfm.files.sz) break;
+        if (!lfm.files.sz && !lfm.selection.sz) break;
         lfm.action = ACTION_DELETE;
+        if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, lfm.files.buf[lfm.cur].name, strlen(lfm.files.buf[lfm.cur].name));
     case KEY_LEFT: case 'h':
         return move_left();
