@@ -33,7 +33,7 @@
 #define KEY_MODE_EXEC   ':'
 #define KEY_MODE_MOVE   'm'
 #define KEY_MODE_COPY   'c'
-#define KEY_MODE_FIND   'f'
+#define KEY_MODE_FIND   '/'
 #define KEY_FIND_NEXT   'n'
 #define KEY_EDIT_FILE   'e'
 
