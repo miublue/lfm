@@ -323,7 +323,11 @@ static char *action_to_cstr[] = {
 };
 
 void render_status(void) {
+#if _USE_COLOR
     const int attr = ATTR_STATUS|COLOR_PAIR(COLOR_STATUS);
+#else
+    const int attr = ATTR_STATUS;
+#endif
     char status[ALLOC_SIZE] = {0};
     sprintf(status, " %ld %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, lfm.path);
     const size_t status_sz = strlen(status);
