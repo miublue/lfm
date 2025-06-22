@@ -296,7 +296,7 @@ static void _render_file(int l) {
     if (file.is_link) { attr |= ATTR_LINK|COLOR_PAIR(PAIR_LINK); strcat(postfix, "@"); }
 
     attron(attr);
-    mvprintw(l-lfm.off, 1, "%s%s%s", prefix, file.name, postfix);
+    mvprintw(l-lfm.off, 0, " %s%s%s", prefix, file.name, postfix);
     attroff(attr);
 }
 
