@@ -1,5 +1,6 @@
 USECOLOR ?= 1
-CFLAGS ?=
+USEMTM ?= 1
+CFLAGS ?= 
 
 ifdef USECOLOR
 	CFLAGS += -D_USE_COLOR

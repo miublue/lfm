@@ -245,6 +245,7 @@ void toggle_hidden(void) {
     free(file);
 }
 
+// XXX: allow for searching only directories or files
 void find_next(char *str, int sz) {
     char to_find[PATH_MAX] = {0};
     memcpy(to_find, str, sz);
@@ -494,7 +495,7 @@ void update(void) {
     case KEY_SELECT_FILE:
         if (!lfm.files.sz) break;
         select_file(lfm.files.buf[lfm.cur]);
-        if (lfm.cur+1 < lfm.files.sz) ++lfm.cur;
+        move_down();
         break;
     case KEY_SELECT_ALL:
         return select_all_files(TRUE);
