@@ -16,3 +16,6 @@ all:
 install: all
 	install lfm /usr/local/bin
 
+uninstall:
+	rm /usr/local/bin/lfm
+
