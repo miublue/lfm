@@ -119,7 +119,7 @@ static int _compare_files(const void *a_ptr, const void *b_ptr) {
     const file_t *a = (file_t*)a_ptr, *b = (file_t*)b_ptr;
     if (a->type == T_DIR && b->type != T_DIR) return -1;
     if (a->type != T_DIR && b->type == T_DIR) return 1;
-    else return (strcmp(a->name, b->name));
+    else return (strcasecmp(a->name, b->name));
 }
 
 void list_files(char *path) {
@@ -128,7 +128,7 @@ void list_files(char *path) {
     if (!lfm.path) goto fail;
     chdir(lfm.path);
     lfm.files.sz = lfm.cur = lfm.off = 0;
-
+    // XXX: i could probably use scandir with alphasort also
     struct dirent *ent = NULL;
     DIR *dir = opendir(lfm.path);
     if (!dir) goto fail;
@@ -251,13 +251,13 @@ void find_next(char *str, int sz) {
     memcpy(to_find, str, sz);
     int found = 0, where = 0;
     for (where = lfm.cur+1; where < lfm.files.sz; ++where) {
-        if (strstr(lfm.files.buf[where].name, to_find)) {
+        if (strcasestr(lfm.files.buf[where].name, to_find)) {
             found = 1; break;
         }
     }
     if (!found) {
         for (where = 0; where < lfm.cur; ++where) {
-            if (strstr(lfm.files.buf[where].name, to_find)) {
+            if (strcasestr(lfm.files.buf[where].name, to_find)) {
                 found = 1; break;
             }
         }
@@ -436,6 +436,7 @@ void update(void) {
     int ch = getch();
     if (lfm.action != ACTION_NONE) return _update_action(ch);
     switch (ch) {
+    case KEY_RESIZE: break;
     case CTRL('q'): case KEY_QUIT:
         return quit_lfm();
     case CTRL('r'): case KEY_RELOAD:
