@@ -337,7 +337,7 @@ void render_status(void) {
     if (lfm.action != ACTION_NONE) {
         char *astr = action_to_cstr[lfm.action];
         mvprintw(lfm.wh-1, 0, "%s", astr);
-        input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-status_sz-strlen(astr));
+        input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-strlen(astr));
     }
     attroff(attr);
 }
