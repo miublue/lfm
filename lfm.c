@@ -436,7 +436,11 @@ void update(void) {
     int ch = getch();
     if (lfm.action != ACTION_NONE) return _update_action(ch);
     switch (ch) {
-    case KEY_RESIZE: break;
+    case KEY_RESIZE:
+        getmaxyx(stdscr, lfm.wh, lfm.ww);
+        while (lfm.cur-lfm.off < 0) move_down();
+        while (lfm.cur-lfm.off >= lfm.wh-1) move_up();
+        return;
     case CTRL('q'): case KEY_QUIT:
         return quit_lfm();
     case CTRL('r'): case KEY_RELOAD:
@@ -512,8 +516,8 @@ void update(void) {
 void main(int argc, char **argv) {
     init_lfm(argc < 2? "." : argv[1]);
     _init_curses();
+    getmaxyx(stdscr, lfm.wh, lfm.ww);
     for (;;) {
-        getmaxyx(stdscr, lfm.wh, lfm.ww);
         render_files();
         render_status();
         update();
