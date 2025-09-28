@@ -87,9 +87,7 @@ void init_lfm(char *path) {
 }
 
 void quit_lfm(void) {
-    char path[PATH_MAX] = {0};
-    sprintf(path, "%s/.lfmsel", getenv("HOME"));
-    FILE *file = fopen(path, "w");
+    FILE *file = fopen("/tmp/lfmsel", "w");
     fwrite(lfm.path, strlen(lfm.path), 1, file);
     fclose(file);
     _free_files(&lfm.files);
@@ -434,13 +432,14 @@ static inline void _update_action(int ch) {
 
 void update(void) {
     int ch = getch();
-    if (lfm.action != ACTION_NONE) return _update_action(ch);
-    switch (ch) {
-    case KEY_RESIZE:
+    if (ch == KEY_RESIZE) {
         getmaxyx(stdscr, lfm.wh, lfm.ww);
         while (lfm.cur-lfm.off < 0) move_down();
         while (lfm.cur-lfm.off >= lfm.wh-1) move_up();
         return;
+    }
+    if (lfm.action != ACTION_NONE) return _update_action(ch);
+    switch (ch) {
     case CTRL('q'): case KEY_QUIT:
         return quit_lfm();
     case CTRL('r'): case KEY_RELOAD:
