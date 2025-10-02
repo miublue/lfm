@@ -141,6 +141,8 @@ void list_files(char *path) {
     closedir(dir);
     return;
 fail:
+    // XXX: maybe try displaying error on statusbar and chdir
+    //      to home directory before giving up and exitting.
     fprintf(stderr, "error: path '%s' does not exist\n", path);
     exit(1);
 }
@@ -284,7 +286,7 @@ static void _render_file(int l) {
     file_t file = lfm.files.buf[l];
     char *prefix = (_find_file(&lfm.selection, file) != -1)? SELECTION_PREFIX : "";
     char postfix[3] = {0};
-    int attr = 0;
+    int attr = 0, affix_size, size;
 
     if (lfm.cur == l) attr |= A_REVERSE;
     switch (file.type) {
@@ -294,8 +296,10 @@ static void _render_file(int l) {
     }
     if (file.is_link) { attr |= ATTR_LINK|COLOR_PAIR(PAIR_LINK); strcat(postfix, "@"); }
 
+    affix_size = strlen(prefix) + strlen(postfix);
+    size = MIN(lfm.ww-affix_size, strlen(file.name));
     attron(attr);
-    mvprintw(l-lfm.off, 0, " %s%s%s", prefix, file.name, postfix);
+    mvprintw(l-lfm.off, 0, " %s%.*s%s", prefix, size, file.name, postfix);
     attroff(attr);
 }
 
