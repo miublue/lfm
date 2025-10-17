@@ -102,6 +102,8 @@ static file_t _stat_file(char *name) {
     sprintf(path, "%s/%s", lfm.path, name);
     struct stat file_stat;
     stat(path, &file_stat);
+    // XXX: make some amalgamation of stat and lstat
+    //      checking S_ISLNK(st_mode) and st_nlink > 1
     file_t file = {
         .is_link = S_ISLNK(file_stat.st_mode),
         .name = {0},
@@ -288,13 +290,13 @@ static void _render_file(int l) {
     char postfix[3] = {0};
     int attr = 0, affix_size, size;
 
-    if (lfm.cur == l) attr |= A_REVERSE;
     switch (file.type) {
-    case T_DIR:  attr |= ATTR_DIR|COLOR_PAIR(PAIR_DIR);   strcat(postfix, "/"); break;
-    case T_EXEC: attr |= ATTR_EXEC|COLOR_PAIR(PAIR_EXEC); strcat(postfix, "*"); break;
-    default:     attr |= ATTR_FILE|COLOR_PAIR(PAIR_NORMAL); break;
+    case T_DIR:  attr = ATTR_DIR|COLOR_PAIR(PAIR_DIR);   strcat(postfix, "/"); break;
+    case T_EXEC: attr = ATTR_EXEC|COLOR_PAIR(PAIR_EXEC); strcat(postfix, "*"); break;
+    default:     attr = ATTR_FILE|COLOR_PAIR(PAIR_NORMAL); break;
     }
-    if (file.is_link) { attr |= ATTR_LINK|COLOR_PAIR(PAIR_LINK); strcat(postfix, "@"); }
+    if (file.is_link) { attr = ATTR_LINK|COLOR_PAIR(PAIR_LINK); strcat(postfix, "@"); }
+    if (lfm.cur == l) attr |= A_REVERSE;
 
     affix_size = strlen(prefix) + strlen(postfix);
     size = MIN(lfm.ww-affix_size, strlen(file.name));
