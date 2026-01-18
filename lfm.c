@@ -17,9 +17,9 @@ typedef struct {
 
 static struct {
     char *path;
-    list_files_t files;
-    list_files_t selection;
-    int cur, off, ww, wh, hidden, action;
+    list_files_t files, selection;
+    int action, is_hidden;
+    int cur, off, ww, wh;
     inputbox_t input;
 } lfm;
 
@@ -78,7 +78,7 @@ static void _remove_file(list_files_t *list, int idx) {
 
 void init_lfm(char *path) {
     lfm.path = NULL;
-    lfm.hidden = SHOW_HIDDEN;
+    lfm.is_hidden = SHOW_HIDDEN;
     lfm.action = ACTION_NONE;
     _init_files(&lfm.files);
     _init_files(&lfm.selection);
@@ -134,7 +134,7 @@ void list_files(char *path) {
     if (!dir) goto fail;
     while ((ent = readdir(dir)) != NULL) {
         if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
-        if (!lfm.hidden && ent->d_name[0] == '.') continue;
+        if (!lfm.is_hidden && ent->d_name[0] == '.') continue;
         file_t file = _stat_file(ent->d_name);
         _append_file(&lfm.files, file);
     }
@@ -240,7 +240,7 @@ void page_down(void) {
 
 void toggle_hidden(void) {
     char *file = strdup(lfm.files.buf[lfm.cur].name);
-    lfm.hidden = !lfm.hidden;
+    lfm.is_hidden = !lfm.is_hidden;
     reload_files();
     if (lfm.files.sz && strcmp(lfm.files.buf[lfm.cur].name, file) != 0)
         find_next(file, strlen(file));
@@ -389,7 +389,6 @@ static inline void _execute_on_selection(char *op, bool to_path) {
     execute(cmd);
     free(cmd);
 }
-
 
 static inline void _action_move_selected(void) {
     _execute_on_selection(lfm.action == ACTION_COPY? "cp -rf" : "mv -f", TRUE);
