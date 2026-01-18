@@ -1,6 +1,6 @@
 CC = tcc
 USECOLOR = 1
-BINPATH = /usr/local/bin
+PREFIX = /usr/local
 CFLAGS = 
 
 ifdef USECOLOR
@@ -11,9 +11,11 @@ all:
 	${CC} -O2 -o lfm *.c -lncurses ${CFLAGS}
 
 install: all
-	mkdir -p ${BINPATH}
-	install lfm ${BINPATH}
+	mkdir -p ${PREFIX}/bin
+	install -s lfm ${PREFIX}/bin
 
 uninstall:
-	rm ${BINPATH}/lfm
+	rm ${PREFIX}/bin/lfm
+
+.PHONY: all install uninstall
 
