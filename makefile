@@ -3,6 +3,10 @@ USECOLOR = 1
 PREFIX = /usr/local
 CFLAGS = 
 
+ifdef USEMTM
+	CFLAGS += -D_USE_MTM
+endif
+
 ifdef USECOLOR
 	CFLAGS += -D_USE_COLOR
 endif

@@ -53,6 +53,16 @@ static inline void _input_remove_prev_word(inputbox_t *ib) {
 
 void input_update(inputbox_t *ib, int key) {
     switch (key) {
+#ifdef _USE_MTM
+    case 200:
+        switch (getch()) {
+        default: break;
+        case 144: _input_remove_next_word(ib); break;
+        case 170: _input_prev_word(ib); break;
+        case 185: _input_next_word(ib); break;
+        }
+        break;
+#endif
     case KEY_RESIZE: break;
     case KEY_LEFT:
         if (ib->pos > 0) --ib->pos;
@@ -91,15 +101,15 @@ void input_update(inputbox_t *ib, int key) {
     }
 }
 
-void input_render(inputbox_t *ib, int x, int y, int w) {
+void input_render(inputbox_t *ib, int x, int y, int w, int attr) {
     char text[INPUTBOX_TEXT_SIZE] = {0};
     const int cap = MIN(ib->text_sz, w);
     memset(text, ' ', sizeof(text));
     memcpy(text, ib->text, cap);
     mvprintw(y, x, "%.*s", cap, text);
-    attron(A_REVERSE);
+    attrset(attr);
     mvprintw(y, x+ib->pos, "%c", isprint(ib->text[ib->pos])? ib->text[ib->pos] : ' ');
-    attroff(A_REVERSE);
+    attroff(attr);
 }
 
 void input_reset(inputbox_t *ib) {
