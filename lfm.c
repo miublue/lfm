@@ -327,6 +327,20 @@ static char *action_to_cstr[] = {
     [ACTION_DELETE] = "Delete: ",
 };
 
+static char *_expand_home(void) {
+#if EXPAND_HOME
+    const char *home = getenv("HOME");
+    if (!strstr(lfm.path, home)) goto end;
+    char *path = malloc(PATH_MAX);
+    memset(path, 0, PATH_MAX);
+    path[0] = '~';
+    strcat(path, lfm.path+strlen(home));
+    return path;
+#endif
+end:
+    return strdup(lfm.path);
+}
+
 void render_status(void) {
 #if _USE_COLOR
     const int attr = ATTR_STATUS|COLOR_PAIR(COLOR_STATUS);
@@ -337,7 +351,9 @@ void render_status(void) {
     memset(status, ' ', lfm.ww);
     attron(attr);
     mvprintw(lfm.wh-1, 0, "%s", status);
-    sprintf(status, " %ld %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, lfm.path);
+    char *path = _expand_home();
+    sprintf(status, " %ld %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, path);
+    free(path);
     const size_t status_sz = strlen(status);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
     if (lfm.action != ACTION_NONE) {

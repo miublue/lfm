@@ -4,7 +4,8 @@
 #define SELECTION_PREFIX " + "
 #define SELECTION_TEXT   "selection"
 
-#define SHOW_HIDDEN 0
+#define SHOW_HIDDEN FALSE
+#define EXPAND_HOME TRUE
 
 #define COLOR_STATUS COLOR_RED
 #define COLOR_DIR    COLOR_CYAN
@@ -15,7 +16,7 @@
 #define ATTR_EXEC   A_BOLD
 #define ATTR_LINK   0
 #define ATTR_FILE   0
-#define ATTR_STATUS A_BOLD
+#define ATTR_STATUS A_REVERSE
 
 #define KEY_QUIT   'q'
 #define KEY_RELOAD 'r'
