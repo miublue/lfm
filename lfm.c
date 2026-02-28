@@ -334,14 +334,17 @@ void render_status(void) {
     const int attr = ATTR_STATUS;
 #endif
     char status[ALLOC_SIZE] = {0};
+    memset(status, ' ', lfm.ww);
+    attron(attr);
+    mvprintw(lfm.wh-1, 0, "%s", status);
     sprintf(status, " %ld %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, lfm.path);
     const size_t status_sz = strlen(status);
-    attron(attr);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
     if (lfm.action != ACTION_NONE) {
         char *astr = action_to_cstr[lfm.action];
         mvprintw(lfm.wh-1, 0, "%s", astr);
-        input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-strlen(astr));
+        const int input_attr = attr & A_REVERSE? A_NORMAL : A_REVERSE;
+        input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-strlen(astr), input_attr);
     }
     attroff(attr);
 }
