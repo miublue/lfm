@@ -18,7 +18,7 @@ typedef struct {
 static struct {
     char *path;
     list_files_t files, selection;
-    int action, is_hidden;
+    int action, show_hidden;
     int cur, off, ww, wh;
     inputbox_t input;
 } lfm;
@@ -78,7 +78,6 @@ static void _remove_file(list_files_t *list, int idx) {
 
 void init_lfm(char *path) {
     lfm.path = NULL;
-    lfm.is_hidden = SHOW_HIDDEN;
     lfm.action = ACTION_NONE;
     _init_files(&lfm.files);
     _init_files(&lfm.selection);
@@ -134,7 +133,7 @@ void list_files(char *path) {
     if (!dir) goto fail;
     while ((ent = readdir(dir)) != NULL) {
         if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
-        if (!lfm.is_hidden && ent->d_name[0] == '.') continue;
+        if (!lfm.show_hidden && ent->d_name[0] == '.') continue;
         file_t file = _stat_file(ent->d_name);
         _append_file(&lfm.files, file);
     }
@@ -240,7 +239,7 @@ void page_down(void) {
 
 void toggle_hidden(void) {
     char *file = strdup(lfm.files.buf[lfm.cur].name);
-    lfm.is_hidden = !lfm.is_hidden;
+    lfm.show_hidden = !lfm.show_hidden;
     reload_files();
     if (lfm.files.sz && strcmp(lfm.files.buf[lfm.cur].name, file) != 0)
         find_next(file, strlen(file));
@@ -536,8 +535,22 @@ void update(void) {
     }
 }
 
+static inline void _usage(const char *prg) {
+    fprintf(stderr, "usage: %s [-h|-x] [path]\n", prg);
+    fprintf(stderr, "    -h    show this help and exit\n");
+    fprintf(stderr, "    -x    show hidden files by default\n");
+    exit(0);
+}
+
 void main(int argc, char **argv) {
-    init_lfm(argc < 2? "." : argv[1]);
+    char *path = ".";
+    lfm.show_hidden = SHOW_HIDDEN;
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-h")) _usage(argv[0]);
+        else if (!strcmp(argv[i], "-x")) lfm.show_hidden = TRUE;
+        else path = argv[i];
+    }
+    init_lfm(path);
     _init_curses();
     getmaxyx(stdscr, lfm.wh, lfm.ww);
     for (;;) {
