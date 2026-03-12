@@ -8,6 +8,9 @@
 #define CTRL(c) ((c) & 0x1f)
 #define ALLOC_SIZE 512
 
+#define MIN(a, b) ((a) < (b)? (a) : (b))
+#define MAX(a, b) ((a) > (b)? (a) : (b))
+
 #include "config.h"
 
 enum { ACTION_NONE, ACTION_FIND, ACTION_EXEC, ACTION_OPEN, ACTION_MOVE, ACTION_COPY, ACTION_DELETE, NUM_ACTIONS };
