@@ -7,8 +7,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <ncurses.h>
-#include "inputbox.h"
 #include "lfm.h"
+#define INPUTBOX_IMPL
+#include "inputbox.h"
 
 typedef struct {
     size_t sz, cap;
@@ -16,6 +17,7 @@ typedef struct {
 } list_files_t;
 
 static struct {
+    const char *prgname;
     char *path;
     list_files_t files, selection;
     int action, show_hidden;
@@ -359,6 +361,8 @@ void render_status(void) {
         char *astr = action_to_cstr[lfm.action];
         mvprintw(lfm.wh-1, 0, "%s", astr);
         const int input_attr = attr & A_REVERSE? A_NORMAL : A_REVERSE;
+        // XXX: it makes sense to subtract strlen(status) from user input,
+        //      but that means you have way less space to type in.
         input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-strlen(astr), input_attr);
     }
     attroff(attr);
@@ -453,10 +457,19 @@ static inline void _update_action(int ch) {
     input_update(&lfm.input, ch);
 }
 
+static inline void _get_term_size(void) {
+    getmaxyx(stdscr, lfm.wh, lfm.ww);
+    if (lfm.ww < 30 || lfm.wh < 5) {
+        _quit_curses();
+        fprintf(stderr, "error: %s requires minimal terminal size of 5x30.\n", lfm.prgname);
+        exit(1);
+    }
+}
+
 void update(void) {
     int ch = getch();
     if (ch == KEY_RESIZE) {
-        getmaxyx(stdscr, lfm.wh, lfm.ww);
+        _get_term_size();
         while (lfm.cur-lfm.off < 0) move_down();
         while (lfm.cur-lfm.off >= lfm.wh-1) move_up();
         return;
@@ -535,24 +548,25 @@ void update(void) {
     }
 }
 
-static inline void _usage(const char *prg) {
-    fprintf(stderr, "usage: %s [-h|-x] [path]\n", prg);
+static inline void _usage(void) {
+    fprintf(stderr, "usage: %s [-h|-x] [path]\n", lfm.prgname);
     fprintf(stderr, "    -h    show this help and exit\n");
     fprintf(stderr, "    -x    show hidden files by default\n");
     exit(0);
 }
 
 void main(int argc, char **argv) {
+    lfm.prgname = argv[0];
     char *path = ".";
     lfm.show_hidden = SHOW_HIDDEN;
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-h")) _usage(argv[0]);
+        if (!strcmp(argv[i], "-h")) _usage();
         else if (!strcmp(argv[i], "-x")) lfm.show_hidden = TRUE;
         else path = argv[i];
     }
     init_lfm(path);
     _init_curses();
-    getmaxyx(stdscr, lfm.wh, lfm.ww);
+    _get_term_size();
     for (;;) {
         render_files();
         render_status();
