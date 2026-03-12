@@ -356,7 +356,7 @@ void render_status(void) {
     sprintf(status, " %ld %d:%ld %s ", lfm.selection.sz, lfm.cur+1, lfm.files.sz, path);
     free(path);
     const size_t status_sz = strlen(status);
-    mvprintw(lfm.wh-1, lfm.ww-status_sz, status);
+    mvprintw(lfm.wh-1, lfm.ww-status_sz, "%s", status);
     if (lfm.action != ACTION_NONE) {
         char *astr = action_to_cstr[lfm.action];
         mvprintw(lfm.wh-1, 0, "%s", astr);
