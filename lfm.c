@@ -459,9 +459,10 @@ static inline void _update_action(int ch) {
 
 static inline void _get_term_size(void) {
     getmaxyx(stdscr, lfm.wh, lfm.ww);
-    if (lfm.ww < 30 || lfm.wh < 5) {
+    if (lfm.ww < MIN_TERM_WIDTH || lfm.wh < MIN_TERM_HEIGHT) {
         _quit_curses();
-        fprintf(stderr, "error: %s requires minimal terminal size of 5x30.\n", lfm.prgname);
+        fprintf(stderr, "error: %s requires minimal terminal size of %dx%d.\n",
+                lfm.prgname, MIN_TERM_WIDTH, MIN_TERM_HEIGHT);
         exit(1);
     }
 }

@@ -11,6 +11,9 @@
 #define MIN(a, b) ((a) < (b)? (a) : (b))
 #define MAX(a, b) ((a) > (b)? (a) : (b))
 
+#define MIN_TERM_WIDTH 30
+#define MIN_TERM_HEIGHT 5
+
 #include "config.h"
 
 enum { ACTION_NONE, ACTION_FIND, ACTION_EXEC, ACTION_OPEN, ACTION_MOVE, ACTION_COPY, ACTION_DELETE, NUM_ACTIONS };
