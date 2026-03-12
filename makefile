@@ -1,7 +1,7 @@
 CC = tcc
 USECOLOR = 1
 PREFIX = /usr/local
-CFLAGS = 
+CFLAGS =
 
 ifdef USEMTM
 	CFLAGS += -D_USE_MTM
@@ -12,7 +12,7 @@ ifdef USECOLOR
 endif
 
 all:
-	${CC} -O2 -o lfm *.c -lncurses ${CFLAGS}
+	${CC} -O2 -o lfm lfm.c -lncurses ${CFLAGS}
 
 install: all
 	mkdir -p ${PREFIX}/bin
