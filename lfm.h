@@ -20,16 +20,16 @@ enum { ACTION_NONE, ACTION_FIND, ACTION_EXEC, ACTION_OPEN, ACTION_MOVE, ACTION_C
 enum { PAIR_NORMAL, PAIR_STATUS = 1, PAIR_DIR, PAIR_EXEC, PAIR_LINK };
 enum { T_DIR, T_FILE, T_EXEC };
 
-typedef struct {
+struct file {
     char path[PATH_MAX], name[PATH_MAX];
     char is_link, type;
-} file_t;
+};
 
 void init_lfm(char *path);
 void quit_lfm(void);
 
 void list_files(char *path);
-void select_file(file_t file);
+void select_file(struct file file);
 void select_all_files(bool add_all);
 
 void scroll_up(void);

@@ -11,18 +11,18 @@
 #define INPUTBOX_IMPL
 #include "inputbox.h"
 
-typedef struct {
+struct files_list {
     size_t sz, cap;
-    file_t *buf;
-} list_files_t;
+    struct file *buf;
+};
 
 static struct {
     const char *prgname;
     char *path;
-    list_files_t files, selection;
+    struct files_list files, selection;
     int action, show_hidden;
     int cur, off, ww, wh;
-    inputbox_t input;
+    struct inputbox input;
 } lfm;
 
 static void _init_curses(void) {
@@ -47,32 +47,32 @@ static void _quit_curses(void) {
     curs_set(1);
 }
 
-static void _init_files(list_files_t *list) {
-    list->buf = malloc(sizeof(file_t) * (list->cap = ALLOC_SIZE));
+static void _init_files(struct files_list *list) {
+    list->buf = malloc(sizeof(struct file) * (list->cap = ALLOC_SIZE));
     list->sz = 0;
 }
 
-static void _free_files(list_files_t *list) {
+static void _free_files(struct files_list *list) {
     free(list->buf);
     list->sz = list->cap = 0;
 }
 
-static void _append_file(list_files_t *list, file_t file) {
+static void _append_file(struct files_list *list, struct file file) {
     if (list->sz >= list->cap)
-        list->buf = realloc(list->buf, sizeof(file_t) * (list->cap += ALLOC_SIZE));
+        list->buf = realloc(list->buf, sizeof(struct file) * (list->cap += ALLOC_SIZE));
     list->buf[list->sz++] = file;
 }
 
 // return index of file if selected, else return -1
-static int _find_file(list_files_t *list, file_t file) {
+static int _find_file(struct files_list *list, struct file file) {
     for (int i = 0; i < list->sz; ++i) {
-        file_t *f = &list->buf[i];
+        struct file *f = &list->buf[i];
         if (!strcmp(f->path, file.path) && !strcmp(f->name, file.name)) return i;
     }
     return -1;
 }
 
-static void _remove_file(list_files_t *list, int idx) {
+static void _remove_file(struct files_list *list, int idx) {
     if (list->sz == 0 || idx >= list->sz) return;
     --list->sz;
     for (int i = idx; i < list->sz; ++i) list->buf[i] = list->buf[i+1];
@@ -98,14 +98,14 @@ void quit_lfm(void) {
     exit(0);
 }
 
-static file_t _stat_file(char *name) {
+static struct file _stat_file(char *name) {
     char path[PATH_MAX] = {0};
     sprintf(path, "%s/%s", lfm.path, name);
     struct stat file_stat;
     stat(path, &file_stat);
     // XXX: make some amalgamation of stat and lstat
     //      checking S_ISLNK(st_mode) and st_nlink > 1
-    file_t file = {
+    struct file file = {
         .is_link = S_ISLNK(file_stat.st_mode),
         .name = {0},
         .path = {0},
@@ -117,7 +117,7 @@ static file_t _stat_file(char *name) {
 }
 
 static int _compare_files(const void *a_ptr, const void *b_ptr) {
-    const file_t *a = (file_t*)a_ptr, *b = (file_t*)b_ptr;
+    const struct file *a = (struct file*)a_ptr, *b = (struct file*)b_ptr;
     if (a->type == T_DIR && b->type != T_DIR) return -1;
     if (a->type != T_DIR && b->type == T_DIR) return 1;
     else return (strcasecmp(a->name, b->name));
@@ -136,11 +136,11 @@ void list_files(char *path) {
     while ((ent = readdir(dir)) != NULL) {
         if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) continue;
         if (!lfm.show_hidden && ent->d_name[0] == '.') continue;
-        file_t file = _stat_file(ent->d_name);
+        struct file file = _stat_file(ent->d_name);
         _append_file(&lfm.files, file);
     }
 
-    qsort(lfm.files.buf, lfm.files.sz, sizeof(file_t), &_compare_files);
+    qsort(lfm.files.buf, lfm.files.sz, sizeof(struct file), &_compare_files);
     closedir(dir);
     return;
 fail:
@@ -150,7 +150,7 @@ fail:
     exit(1);
 }
 
-void select_file(file_t file) {
+void select_file(struct file file) {
     int idx = _find_file(&lfm.selection, file);
     if (idx != -1) _remove_file(&lfm.selection, idx);
     else _append_file(&lfm.selection, file);
@@ -203,7 +203,7 @@ void move_left(void) {
 }
 
 void move_right(void) {
-    file_t file = lfm.files.buf[lfm.cur];
+    struct file file = lfm.files.buf[lfm.cur];
     if (file.type != T_DIR) return;
     char path[PATH_MAX] = {0};
     sprintf(path, "%s/%s", lfm.path, file.name);
@@ -286,7 +286,7 @@ void execute(char *cmd) {
 }
 
 static void _render_file(int l) {
-    file_t file = lfm.files.buf[l];
+    struct file file = lfm.files.buf[l];
     char *prefix = (_find_file(&lfm.selection, file) != -1)? SELECTION_PREFIX : "";
     char postfix[3] = {0};
     int attr = 0, affix_size, size;
@@ -404,7 +404,7 @@ static inline void _execute_on_selection(char *op, bool to_path) {
     char *cmd = calloc(sz, sizeof(char));
     sprintf(cmd, "%s", op);
     for (int i = 0; i < lfm.selection.sz; ++i) {
-        file_t *file = &lfm.selection.buf[i];
+        struct file *file = &lfm.selection.buf[i];
         sprintf(cmd, "%s '%s/%s'", cmd, file->path, file->name);
     }
     if (to_path) sprintf(cmd, "%s '%s'", cmd, lfm.path);
@@ -556,7 +556,7 @@ static inline void _usage(void) {
     exit(0);
 }
 
-void main(int argc, char **argv) {
+int main(int argc, char **argv) {
     lfm.prgname = argv[0];
     char *path = ".";
     lfm.show_hidden = SHOW_HIDDEN;
@@ -574,4 +574,5 @@ void main(int argc, char **argv) {
         update();
     }
     quit_lfm();
+    return 0;
 }
