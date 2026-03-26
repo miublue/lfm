@@ -363,7 +363,9 @@ void render_status(void) {
         const int input_attr = attr & A_REVERSE? A_NORMAL : A_REVERSE;
         // XXX: it makes sense to subtract strlen(status) from user input,
         //      but that means you have way less space to type in.
-        input_render(&lfm.input, strlen(astr), lfm.wh-1, lfm.ww-strlen(astr), input_attr);
+        const int sz = strlen(astr)+strlen(status);
+        const int cap = sz+5 > lfm.ww? lfm.ww-strlen(astr) : lfm.ww-sz;
+        input_render(&lfm.input, strlen(astr), lfm.wh-1, cap, input_attr);
     }
     attroff(attr);
 }
