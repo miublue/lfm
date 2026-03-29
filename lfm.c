@@ -31,6 +31,14 @@ static void _init_curses(void) {
     noecho();
     curs_set(0);
     keypad(stdscr, TRUE);
+    define_key("\e[1~", KEY_HOME);
+    define_key("\e[4~", KEY_END);
+#ifdef _USE_MTM
+    char key[10] = {0};
+    sprintf(key, "%c%c", 200, 144); define_key(key, 528); // kDC5
+    sprintf(key, "%c%c", 200, 170); define_key(key, 554); // kLFT5
+    sprintf(key, "%c%c", 200, 185); define_key(key, 569); // kRIT5
+#endif
 #if _USE_COLOR
     use_default_colors();
     start_color();
