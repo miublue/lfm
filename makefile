@@ -1,5 +1,6 @@
 CC = tcc
 USECOLOR = 1
+USEMTM = 1
 PREFIX = /usr/local
 CFLAGS =
 
