@@ -211,6 +211,7 @@ void move_left(void) {
 }
 
 void move_right(void) {
+    if (!lfm.files.sz) return;
     struct file file = lfm.files.buf[lfm.cur];
     if (file.type != T_DIR) return;
     char path[PATH_MAX] = {0};
@@ -219,13 +220,13 @@ void move_right(void) {
 }
 
 void move_up(void) {
-    if (lfm.cur == 0) return;
+    if (lfm.cur == 0 || !lfm.files.sz) return;
     --lfm.cur;
     scroll_up();
 }
 
 void move_down(void) {
-    if (lfm.cur >= lfm.files.sz-1) return;
+    if (lfm.cur >= lfm.files.sz-1 || !lfm.files.sz) return;
     ++lfm.cur;
     scroll_down();
 }
@@ -258,6 +259,7 @@ void toggle_hidden(void) {
 
 // XXX: allow for searching only directories or files
 void find_next(char *str, int sz) {
+    if (!lfm.files.sz) return;
     char to_find[PATH_MAX] = {0};
     memcpy(to_find, str, sz);
     int found = 0, where = 0;
@@ -281,6 +283,7 @@ void open_shell(void) {
 }
 
 void edit_file(void) {
+    if (!lfm.files.sz) return;
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "$EDITOR '%s'", lfm.files.buf[lfm.cur].name);
     execute(cmd);
