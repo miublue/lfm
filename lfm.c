@@ -364,7 +364,7 @@ static char *action_to_cstr[] = {
 };
 
 static char *_expand_home(struct tab *tab) {
-#if EXPAND_HOME
+#if !EXPAND_HOME
     const char *home = getenv("HOME");
     if (!strstr(tab->path, home)) goto end;
     char *path = malloc(PATH_MAX);
