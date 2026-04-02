@@ -97,9 +97,9 @@ struct tab *create_tab(char *path) {
 }
 
 void close_tab(struct tab *tab) {
+    if (--lfm.num_tabs == 0) quit_lfm(tab->path);
     if (tab->path) free(tab->path);
     if (tab->files.cap) _free_files(&tab->files);
-    if (--lfm.num_tabs == 0) quit_lfm(tab->path);
     lfm.action = ACTION_NONE;
     for (struct tab *t = tab; t != &lfm.tabs[lfm.num_tabs]; ++t) *t = *(t+1);
     if (lfm.cur_tab == &lfm.tabs[lfm.num_tabs]) --lfm.cur_tab;
