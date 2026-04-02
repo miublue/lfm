@@ -25,32 +25,45 @@ struct file {
     char is_link, type;
 };
 
+struct files_list {
+    size_t sz, cap;
+    struct file *buf;
+};
+
+struct tab {
+    char *path;
+    struct files_list files;
+    int cur, off, show_hidden;
+};
+
 void init_lfm(char *path);
-void quit_lfm(void);
+void quit_lfm(char *path);
 
-void list_files(char *path);
+void list_files(struct tab *tab, char *path);
 void select_file(struct file file);
-void select_all_files(bool add_all);
+void select_all_files(struct tab *tab, bool add_all);
 
-void scroll_up(void);
-void scroll_down(void);
-void move_left(void);
-void move_right(void);
-void move_up(void);
-void move_down(void);
-void move_home(void);
-void move_end(void);
-void page_up(void);
-void page_down(void);
-void toggle_hidden(void);
-void open_shell(void);
-void edit_file(void);
-void reload_files(void);
-void execute(char *cmd);
-void find_next(char *str, int sz);
+void scroll_up(struct tab *tab);
+void scroll_down(struct tab *tab);
+void move_left(struct tab *tab);
+void move_right(struct tab *tab);
+void move_up(struct tab *tab);
+void move_down(struct tab *tab);
+void move_home(struct tab *tab);
+void move_end(struct tab *tab);
+void page_up(struct tab *tab);
+void page_down(struct tab *tab);
+void toggle_hidden(struct tab *tab);
+void open_shell(struct tab *tab);
+void edit_file(struct tab *tab);
+void reload_files(struct tab *tab);
+void execute(struct tab *tab, char *cmd);
+void find_next(struct tab *tab, char *str, int sz);
+struct tab *create_tab(char *path);
+void close_tab(struct tab *tab);
 
-void update(void);
-void render_files(void);
+void update(struct tab *tab);
+void render_files(struct tab *tab);
 void render_status(void);
 
 #endif

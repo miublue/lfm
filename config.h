@@ -28,6 +28,8 @@
 #define KEY_SELECT_EMPTY  'u'
 
 #define KEY_SHOW_HIDDEN '.'
+#define KEY_NEW_TAB     't'
+#define KEY_NEXT_TAB    'w'
 
 #define KEY_MODE_DELETE 'd'
 #define KEY_MODE_OPEN   'o'
