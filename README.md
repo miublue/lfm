@@ -12,6 +12,7 @@ lfm has a very minimal set of features:
 * Simple search functionality;
 * Selection of multiple files;
 * Delete/copy/move selected files;
+* Multiple tabs;
 
 ## Installation
 Compile with:
