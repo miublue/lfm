@@ -134,14 +134,13 @@ static struct file _stat_file(struct tab *tab, char *name) {
     char path[PATH_MAX] = {0};
     sprintf(path, "%s/%s", tab->path, name);
     struct stat file_stat;
-    stat(path, &file_stat);
-    // XXX: make some amalgamation of stat and lstat
-    //      checking S_ISLNK(st_mode) and st_nlink > 1
+    lstat(path, &file_stat);
     struct file file = {
         .is_link = S_ISLNK(file_stat.st_mode),
         .name = {0},
         .path = {0},
     };
+    stat(path, &file_stat); // XXX: stat'ing it twice is shit but nobody'll use ts so no biggie
     file.type = S_ISDIR(file_stat.st_mode)? T_DIR : (file_stat.st_mode & S_IXUSR)? T_EXEC : T_FILE;
     memcpy(file.name, name, strlen(name));
     memcpy(file.path, tab->path, strlen(tab->path));
