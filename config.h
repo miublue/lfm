@@ -23,22 +23,23 @@
 #define KEY_SHELL  's'
 
 #define KEY_SELECT_FILE   ' '
-#define KEY_SELECT_ALL    'a'
+#define KEY_SELECT_ALL    CTRL('a'): case 'a'
 #define KEY_SELECT_INVERT 'i'
 #define KEY_SELECT_EMPTY  'u'
 
-#define KEY_SHOW_HIDDEN '.'
-#define KEY_NEW_TAB     't'
-#define KEY_NEXT_TAB    'w'
+#define KEY_SHOW_HIDDEN CTRL('h'): case '.'
+#define KEY_NEW_TAB     CTRL('t'): case 't'
+#define KEY_NEXT_TAB    CTRL('w'): case 'w'
 
-#define KEY_MODE_DELETE 'd'
-#define KEY_MODE_OPEN   'o'
-#define KEY_MODE_EXEC   ':'
+#define KEY_MODE_DELETE 'x': case 'd'
+#define KEY_MODE_OPEN   CTRL('o'): case 'o'
+#define KEY_MODE_EXEC   CTRL('e'): case ':'
 #define KEY_MODE_MOVE   'm'
 #define KEY_MODE_COPY   'c'
-#define KEY_MODE_FIND   '/'
-#define KEY_FIND_NEXT   'n'
+#define KEY_MODE_FIND   CTRL('f'): case '/'
+#define KEY_FIND_NEXT   CTRL('n'): case 'n'
 #define KEY_EDIT_FILE   'e'
+#define KEY_MODE_TABS   CTRL('b')
 
 #define KEY_NAVUP   'k'
 #define KEY_NAVDOWN 'j'

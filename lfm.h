@@ -16,7 +16,7 @@
 
 #include "config.h"
 
-enum { ACTION_NONE, ACTION_FIND, ACTION_EXEC, ACTION_OPEN, ACTION_MOVE, ACTION_COPY, ACTION_DELETE, NUM_ACTIONS };
+enum { MODE_NONE, MODE_FIND, MODE_EXEC, MODE_OPEN, MODE_MOVE, MODE_COPY, MODE_DELETE, MODE_PICKER, NUM_ACTIONS };
 enum { PAIR_NORMAL, PAIR_STATUS = 1, PAIR_DIR, PAIR_EXEC, PAIR_LINK };
 enum { T_DIR, T_FILE, T_EXEC };
 
@@ -61,6 +61,7 @@ void execute(struct tab *tab, char *cmd);
 void find_next(struct tab *tab, char *str, int sz);
 struct tab *create_tab(char *path);
 void close_tab(struct tab *tab);
+char *expand_home(const char *path);
 
 void update(struct tab *tab);
 void render_files(struct tab *tab);

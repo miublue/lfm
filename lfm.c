@@ -10,6 +10,7 @@
 #include "lfm.h"
 #define INPUTBOX_IMPL
 #include "inputbox.h"
+#include "picker.h"
 
 static struct {
     int show_hidden;
@@ -18,9 +19,10 @@ static struct {
 static struct {
     const char *prgname;
     struct files_list selection;
-    int action, ww, wh, num_tabs, max_tabs;
+    int mode, ww, wh, num_tabs, max_tabs;
     struct tab *tabs, *cur_tab;
     struct inputbox input;
+    struct picker picker;
 } lfm;
 
 static void _init_curses(void) {
@@ -100,7 +102,7 @@ void close_tab(struct tab *tab) {
     if (--lfm.num_tabs == 0) quit_lfm(tab->path);
     if (tab->path) free(tab->path);
     if (tab->files.cap) _free_files(&tab->files);
-    lfm.action = ACTION_NONE;
+    lfm.mode = MODE_NONE;
     for (struct tab *t = tab; t != &lfm.tabs[lfm.num_tabs]; ++t) *t = *(t+1);
     if (lfm.cur_tab == &lfm.tabs[lfm.num_tabs]) --lfm.cur_tab;
 }
@@ -114,12 +116,13 @@ static void _switch_tab(void) {
 }
 
 void init_lfm(char *path) {
-    lfm.action = ACTION_NONE;
+    lfm.mode = MODE_NONE;
     lfm.tabs = malloc((lfm.max_tabs = ALLOC_SIZE) * sizeof(struct tab));
     lfm.num_tabs = 0;
     _init_files(&lfm.selection);
     lfm.cur_tab = create_tab(path);
     input_reset(&lfm.input);
+    picker_reset(&lfm.picker);
 }
 
 void quit_lfm(char *path) {
@@ -341,7 +344,6 @@ static void _render_file(struct tab *tab, int l) {
 }
 
 void render_files(struct tab *tab) {
-    erase();
     if (tab->files.sz == 0) {
         attron(A_REVERSE);
         mvprintw(0, 0, "  empty  ");
@@ -353,27 +355,27 @@ void render_files(struct tab *tab) {
     }
 }
 
-static char *action_to_cstr[] = {
-    [ACTION_FIND] = "Find: ",
-    [ACTION_EXEC] = "Exec: ",
-    [ACTION_OPEN] = "Open: ",
-    [ACTION_MOVE] = "Move: ",
-    [ACTION_COPY] = "Copy: ",
-    [ACTION_DELETE] = "Delete: ",
+static char *mode_to_cstr[] = {
+    [MODE_FIND] = "Find: ",
+    [MODE_EXEC] = "Exec: ",
+    [MODE_OPEN] = "Open: ",
+    [MODE_MOVE] = "Move: ",
+    [MODE_COPY] = "Copy: ",
+    [MODE_DELETE] = "Delete: ",
 };
 
-static char *_expand_home(struct tab *tab) {
-#if !EXPAND_HOME
-    const char *home = getenv("HOME");
-    if (!strstr(tab->path, home)) goto end;
-    char *path = malloc(PATH_MAX);
-    memset(path, 0, PATH_MAX);
-    path[0] = '~';
-    strcat(path, tab->path+strlen(home));
-    return path;
-#endif
-end:
-    return strdup(tab->path);
+char *expand_home(const char *path) {
+    char *res = calloc(1, PATH_MAX);
+    if (!EXPAND_HOME) {
+        const char *home = getenv("HOME");
+        if (strstr(path, home)) {
+            res[0] = '~';
+            strcat(res, path+strlen(home));
+            return res;
+        }
+    }
+    strcpy(res, path);
+    return res;
 }
 
 void render_status(void) {
@@ -387,15 +389,15 @@ void render_status(void) {
     memset(status, ' ', lfm.ww);
     attron(attr);
     mvprintw(lfm.wh-1, 0, "%s", status);
-    char *path = _expand_home(tab);
+    char *path = expand_home(tab->path);
     sprintf(status, " %ld %d:%ld (%d:%d %s) ",
         lfm.selection.sz, tab->cur+1, tab->files.sz,
         (tab-lfm.tabs)+1, lfm.num_tabs, path);
     free(path);
     const size_t status_sz = strlen(status);
     mvprintw(lfm.wh-1, lfm.ww-status_sz, "%s", status);
-    if (lfm.action != ACTION_NONE) {
-        char *astr = action_to_cstr[lfm.action];
+    if (lfm.mode != MODE_NONE) {
+        char *astr = mode_to_cstr[lfm.mode];
         mvprintw(lfm.wh-1, 0, "%s", astr);
         const int input_attr = attr & A_REVERSE? A_NORMAL : A_REVERSE;
         const int sz = strlen(astr)+strlen(status);
@@ -405,31 +407,31 @@ void render_status(void) {
     attroff(attr);
 }
 
-static inline void _action_find(struct tab *tab, int ch) {
+static inline void _mode_find(struct tab *tab, int ch) {
     if (lfm.input.text_sz) find_next(tab, lfm.input.text, lfm.input.text_sz);
 }
 
-static inline void _action_exec(struct tab *tab, int ch) {
+static inline void _mode_exec(struct tab *tab, int ch) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "%.*s", lfm.input.text_sz, lfm.input.text);
     execute(tab, cmd);
 }
 
-static inline void _action_open(struct tab *tab, int ch) {
+static inline void _mode_open(struct tab *tab, int ch) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "%.*s '%s'",
         lfm.input.text_sz, lfm.input.text, tab->files.buf[tab->cur].name);
     execute(tab, cmd);
 }
 
-static inline void _action_move(struct tab *tab, int ch) {
+static inline void _mode_move(struct tab *tab, int ch) {
     char cmd[ALLOC_SIZE] = {0};
-    sprintf(cmd, "%s '%s' '%.*s'", (lfm.action == ACTION_MOVE)? "mv -f" : "cp -rf",
+    sprintf(cmd, "%s '%s' '%.*s'", (lfm.mode == MODE_MOVE)? "mv -f" : "cp -rf",
         tab->files.buf[tab->cur].name, lfm.input.text_sz, lfm.input.text);
     execute(tab, cmd);
 }
 
-static inline void _action_delete(struct tab *tab, int ch) {
+static inline void _mode_delete(struct tab *tab, int ch) {
     char cmd[ALLOC_SIZE] = {0};
     sprintf(cmd, "rm -rf '%.*s'", lfm.input.text_sz, lfm.input.text);
     execute(tab, cmd);
@@ -448,47 +450,47 @@ static inline void _execute_on_selection(struct tab *tab, char *op, bool to_path
     free(cmd);
 }
 
-static inline void _action_move_selected(struct tab *tab) {
-    _execute_on_selection(tab, lfm.action == ACTION_COPY? "cp -rf" : "mv -f", TRUE);
+static inline void _mode_move_selected(struct tab *tab) {
+    _execute_on_selection(tab, lfm.mode == MODE_COPY? "cp -rf" : "mv -f", TRUE);
     lfm.selection.sz = 0;
 }
 
-static inline void _action_delete_selected(struct tab *tab) {
+static inline void _mode_delete_selected(struct tab *tab) {
     _execute_on_selection(tab, "rm -rf", FALSE);
     lfm.selection.sz = 0;
 }
 
-static void (*sel_action_funs[NUM_ACTIONS])(struct tab*) = {
-    [ACTION_MOVE] = _action_move_selected,
-    [ACTION_COPY] = _action_move_selected,
-    [ACTION_DELETE] = _action_delete_selected,
+static void (*sel_mode_funs[NUM_ACTIONS])(struct tab*) = {
+    [MODE_MOVE] = _mode_move_selected,
+    [MODE_COPY] = _mode_move_selected,
+    [MODE_DELETE] = _mode_delete_selected,
 };
 
-static void (*action_funs[NUM_ACTIONS])(struct tab*, int) = {
-    [ACTION_FIND] = _action_find,
-    [ACTION_EXEC] = _action_exec,
-    [ACTION_OPEN] = _action_open,
-    [ACTION_MOVE] = _action_move,
-    [ACTION_COPY] = _action_move,
-    [ACTION_DELETE] = _action_delete,
+static void (*mode_funs[NUM_ACTIONS])(struct tab*, int) = {
+    [MODE_FIND] = _mode_find,
+    [MODE_EXEC] = _mode_exec,
+    [MODE_OPEN] = _mode_open,
+    [MODE_MOVE] = _mode_move,
+    [MODE_COPY] = _mode_move,
+    [MODE_DELETE] = _mode_delete,
 };
 
-static inline void _update_action(struct tab *tab, int ch) {
+static inline void _update_mode(struct tab *tab, int ch) {
     if (ch == CTRL('c') || ch == CTRL('q')) {
-        lfm.action = ACTION_NONE;
+        lfm.mode = MODE_NONE;
         return;
     }
-    if (lfm.selection.sz && sel_action_funs[lfm.action]) {
+    if (lfm.selection.sz && sel_mode_funs[lfm.mode]) {
         if (ch == '\n' || ch == 'y' || ch == 'Y') {
-            sel_action_funs[lfm.action](tab);
+            sel_mode_funs[lfm.mode](tab);
             reload_files(tab);
         }
-        lfm.action = ACTION_NONE;
+        lfm.mode = MODE_NONE;
         return;
     } else if (ch == '\n') {
-        action_funs[lfm.action](tab, ch);
+        mode_funs[lfm.mode](tab, ch);
         reload_files(tab);
-        lfm.action = ACTION_NONE;
+        lfm.mode = MODE_NONE;
     }
     input_update(&lfm.input, ch);
 }
@@ -503,6 +505,26 @@ static inline void _get_term_size(void) {
     }
 }
 
+static void _list_tabs(void) {
+    for (int i = 0; i < lfm.num_tabs; ++i)
+        lfm.picker.tabs[lfm.picker.num_tabs++] = strdup(lfm.tabs[i].path);
+    lfm.picker.cur = lfm.cur_tab - lfm.tabs;
+}
+
+static void _update_picker(void) {
+    int ch = getch();
+    switch (ch) {
+    case '\n':
+        lfm.cur_tab = lfm.tabs + lfm.picker.cur;
+    case KEY_QUIT: case CTRL('c'): case CTRL('q'):
+        lfm.mode = MODE_NONE;
+        break;
+    default:
+        picker_update(&lfm.picker, ch);
+        break;
+    }
+}
+
 void update(struct tab *tab) {
     int ch = getch();
     if (ch == KEY_RESIZE) {
@@ -511,7 +533,7 @@ void update(struct tab *tab) {
         while (tab->cur-tab->off >= lfm.wh-1) move_up(tab);
         return;
     }
-    if (lfm.action != ACTION_NONE) return _update_action(tab, ch);
+    if (lfm.mode != MODE_NONE) return _update_mode(tab, ch);
     switch (ch) {
     case CTRL('q'): case KEY_QUIT:
         return close_tab(tab);
@@ -519,33 +541,37 @@ void update(struct tab *tab) {
         reload_files(tab);
         return;
     case KEY_MODE_FIND:
-        lfm.action = ACTION_FIND;
+        lfm.mode = MODE_FIND;
         return input_reset(&lfm.input);
     case KEY_FIND_NEXT:
         if (lfm.input.text_sz) find_next(tab, lfm.input.text, lfm.input.text_sz);
         return;
     case KEY_MODE_EXEC:
-        lfm.action = ACTION_EXEC;
+        lfm.mode = MODE_EXEC;
         return input_reset(&lfm.input);
     case KEY_MODE_OPEN:
         if (!tab->files.sz) break;
-        lfm.action = ACTION_OPEN;
+        lfm.mode = MODE_OPEN;
         return input_reset(&lfm.input);
     case KEY_MODE_MOVE:
         if (!tab->files.sz && !lfm.selection.sz) break;
-        lfm.action = ACTION_MOVE;
+        lfm.mode = MODE_MOVE;
         if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, tab->files.buf[tab->cur].name, strlen(tab->files.buf[tab->cur].name));
     case KEY_MODE_COPY:
         if (!tab->files.sz && !lfm.selection.sz) break;
-        lfm.action = ACTION_COPY;
+        lfm.mode = MODE_COPY;
         if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, tab->files.buf[tab->cur].name, strlen(tab->files.buf[tab->cur].name));
     case KEY_MODE_DELETE:
         if (!tab->files.sz && !lfm.selection.sz) break;
-        lfm.action = ACTION_DELETE;
+        lfm.mode = MODE_DELETE;
         if (lfm.selection.sz) return input_set(&lfm.input, SELECTION_TEXT, strlen(SELECTION_TEXT));
         return input_set(&lfm.input, tab->files.buf[tab->cur].name, strlen(tab->files.buf[tab->cur].name));
+    case KEY_MODE_TABS:
+        lfm.mode = MODE_PICKER;
+        picker_reset(&lfm.picker);
+        return _list_tabs();
     case KEY_LEFT: case KEY_NAVBACK:
         return move_left(tab);
     case KEY_RIGHT: case KEY_NAVNEXT:
@@ -610,9 +636,15 @@ int main(int argc, char **argv) {
     _init_curses();
     _get_term_size();
     for (;;) {
-        render_files(lfm.cur_tab);
-        render_status();
-        update(lfm.cur_tab);
+        erase();
+        if (lfm.mode == MODE_PICKER) {
+            picker_render(&lfm.picker);
+            _update_picker();
+        } else {
+            render_files(lfm.cur_tab);
+            render_status();
+            update(lfm.cur_tab);
+        }
     }
     quit_lfm(lfm.cur_tab->path);
     return 0;
