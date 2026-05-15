@@ -520,6 +520,7 @@ static void _update_picker(void) {
     case '\n':
         if (!lfm.picker.is_searching) {
             lfm.cur_tab = lfm.tabs + lfm.picker.cur, lfm.mode = MODE_NONE;
+            chdir(lfm.cur_tab->path);
             break;
         }
     default:
