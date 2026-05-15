@@ -514,11 +514,14 @@ static void _list_tabs(void) {
 static void _update_picker(void) {
     int ch = getch();
     switch (ch) {
-    case '\n':
-        lfm.cur_tab = lfm.tabs + lfm.picker.cur;
     case KEY_QUIT: case CTRL('c'): case CTRL('q'):
         lfm.mode = MODE_NONE;
         break;
+    case '\n':
+        if (!lfm.picker.is_searching) {
+            lfm.cur_tab = lfm.tabs + lfm.picker.cur, lfm.mode = MODE_NONE;
+            break;
+        }
     default:
         picker_update(&lfm.picker, ch);
         break;
