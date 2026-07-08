@@ -105,6 +105,7 @@ void close_tab(struct tab *tab) {
     lfm.mode = MODE_NONE;
     for (struct tab *t = tab; t != &lfm.tabs[lfm.num_tabs]; ++t) *t = *(t+1);
     if (lfm.cur_tab == &lfm.tabs[lfm.num_tabs]) --lfm.cur_tab;
+    chdir(lfm.cur_tab->path);
 }
 
 static void _switch_tab(void) {
