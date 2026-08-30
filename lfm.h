@@ -1,6 +1,8 @@
 #ifndef __LFM_H
 #define __LFM_H
 
+#include <stdlib.h>
+
 #ifndef _USE_COLOR
 #define _USE_COLOR 0
 #endif
@@ -26,7 +28,7 @@ struct file {
 };
 
 struct files_list {
-    size_t sz, cap;
+    int sz, cap;
     struct file *buf;
 };
 

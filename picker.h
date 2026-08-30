@@ -29,7 +29,7 @@ static void _picker_move(struct picker *fp, int dir) {
 }
 
 static void _picker_find(struct picker *fp, char *name) {
-    int cur = fp->cur, off = fp->off, pos, found = 0;
+    int cur = fp->cur, off = fp->off, pos;
     for (pos = cur+1; pos < fp->num_tabs; ++pos)
         if (strcasestr(fp->tabs[pos], name)) goto jmp;
     for (pos = 0; pos < cur; ++pos)
@@ -59,7 +59,10 @@ static void _picker_update_find(struct picker *fp, int ch) {
 }
 
 void picker_update(struct picker *fp, int ch) {
-    if (fp->is_searching) return _picker_update_find(fp, ch);
+    if (fp->is_searching) {
+        _picker_update_find(fp, ch);
+        return;
+    }
     switch (ch) {
     case KEY_UP:
         _picker_move(fp, -1);
@@ -114,8 +117,8 @@ void picker_render(struct picker *fp) {
     if (fp->is_searching) {
         const char *str = "Find: ";
         const int cap = strlen(str)+strlen(status), inp_attr = attr & A_REVERSE? A_NORMAL : A_REVERSE;
-        const int w = cap+5 > fp->ww? fp->ww-strlen(str) : fp->ww-cap;
-        mvprintw(fp->wh-1, 0, str);
+        const int w = cap+5 > fp->ww? fp->ww-((int)strlen(str)) : fp->ww-cap;
+        mvprintw(fp->wh-1, 0, "%s", str);
         input_render(&fp->input, strlen(str), fp->wh-1, w, inp_attr);
     }
     attroff(attr);
