@@ -45,6 +45,7 @@ void list_files(struct tab *tab, char *path);
 void select_file(struct file file);
 void select_all_files(struct tab *tab, bool add_all);
 
+void try_center_cursor(struct tab *tab);
 void scroll_up(struct tab *tab);
 void scroll_down(struct tab *tab);
 void move_left(struct tab *tab);

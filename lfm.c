@@ -211,6 +211,13 @@ void reload_files(struct tab *tab) {
     while (tab->cur >= 0 && tab->cur >= tab->files.sz) move_up(tab);
 }
 
+void try_center_cursor(struct tab *tab) {
+    const int half = lfm.wh/2;
+    tab->off = tab->cur-half;
+    if (tab->off+lfm.wh >= tab->files.sz) tab->off = tab->files.sz-lfm.wh+1;
+    if (tab->off < 0) tab->off = 0;
+}
+
 void scroll_up(struct tab *tab) {
     if (tab->cur-tab->off < 0 && tab->off > 0) --tab->off;
 }
@@ -234,6 +241,7 @@ void move_left(struct tab *tab) {
         move_down(tab);
     }
     if (!found) tab->off = tab->cur = 0;
+    else try_center_cursor(tab);
 }
 
 void move_right(struct tab *tab) {
@@ -301,7 +309,10 @@ void find_next(struct tab *tab, char *str, int sz) {
             }
         }
     }
-    if (found) for (tab->cur = tab->off = 0; tab->cur < where; move_down(tab));
+    if (found) {
+        for (tab->cur = tab->off = 0; tab->cur < where; move_down(tab));
+        try_center_cursor(tab);
+    }
 }
 
 void open_shell(struct tab *tab) {
