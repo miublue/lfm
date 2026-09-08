@@ -631,8 +631,9 @@ void update(struct tab *tab) {
 }
 
 static inline void _usage(void) {
-    fprintf(stderr, "usage: %s [-h|-x] [path]\n", lfm.prgname);
-    fprintf(stderr, "    -h    show this help and exit\n");
+    fprintf(stderr, "usage: %s [-hvx] [path]\n", lfm.prgname);
+    fprintf(stderr, "    -h    print this help and exit\n");
+    fprintf(stderr, "    -v    print version and exit\n");
     fprintf(stderr, "    -x    show hidden files by default\n");
     exit(0);
 }
@@ -643,6 +644,7 @@ int main(int argc, char **argv) {
     opts.show_hidden = SHOW_HIDDEN;
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-h")) _usage();
+        else if (!strcmp(argv[i], "-v")) { fprintf(stdout, "%s %s\n", argv[0], VERSION); exit(0); }
         else if (!strcmp(argv[i], "-x")) opts.show_hidden = TRUE;
         else path = argv[i];
     }
