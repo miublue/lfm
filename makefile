@@ -1,6 +1,6 @@
 CC = tcc
 PREFIX = /usr/local
-CFLAGS = -Wall -Werror -Wextra -std=c99 -D_GNU_SOURCE
+CFLAGS = -Wall -Werror -Wextra
 USECOLOR = 1
 USEMTM = 1
 

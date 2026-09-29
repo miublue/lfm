@@ -418,31 +418,31 @@ void render_status(void) {
     attroff(attr);
 }
 
-static inline void _mode_find(struct tab *tab) {
+static void _mode_find(struct tab *tab) {
     if (lfm.input.text_sz) find_next(tab, lfm.input.text, lfm.input.text_sz);
 }
 
-static inline void _mode_exec(struct tab *tab) {
+static void _mode_exec(struct tab *tab) {
     char cmd[ALLOC_SIZE] = {0};
     snprintf(cmd, sizeof(cmd), "%.*s", lfm.input.text_sz, lfm.input.text);
     execute(tab, cmd);
 }
 
-static inline void _mode_open(struct tab *tab) {
+static void _mode_open(struct tab *tab) {
     char cmd[PATH_MAX*2] = {0};
     snprintf(cmd, sizeof(cmd), "%.*s '%s'",
         lfm.input.text_sz, lfm.input.text, tab->files.buf[tab->cur].name);
     execute(tab, cmd);
 }
 
-static inline void _mode_move(struct tab *tab) {
+static void _mode_move(struct tab *tab) {
     char cmd[PATH_MAX*2] = {0};
     snprintf(cmd, sizeof(cmd), "%s '%s' '%.*s'", (lfm.mode == MODE_MOVE)? "mv -f" : "cp -rf",
         tab->files.buf[tab->cur].name, lfm.input.text_sz, lfm.input.text);
     execute(tab, cmd);
 }
 
-static inline void _mode_delete(struct tab *tab) {
+static void _mode_delete(struct tab *tab) {
     char cmd[PATH_MAX*2] = {0};
     snprintf(cmd, sizeof(cmd), "rm -rf '%.*s'", lfm.input.text_sz, lfm.input.text);
     execute(tab, cmd);
@@ -465,12 +465,12 @@ static inline void _execute_on_selection(struct tab *tab, char *op, bool to_path
     free(cmd);
 }
 
-static inline void _mode_move_selected(struct tab *tab) {
+static void _mode_move_selected(struct tab *tab) {
     _execute_on_selection(tab, lfm.mode == MODE_COPY? "cp -rf" : "mv -f", TRUE);
     lfm.selection.sz = 0;
 }
 
-static inline void _mode_delete_selected(struct tab *tab) {
+static void _mode_delete_selected(struct tab *tab) {
     _execute_on_selection(tab, "rm -rf", FALSE);
     lfm.selection.sz = 0;
 }
