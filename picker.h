@@ -13,11 +13,12 @@ struct picker {
     struct inputbox input;
 };
 
+void picker_move(struct picker *fp, int dir);
 void picker_update(struct picker *fp, int ch);
 void picker_render(struct picker *fp);
 void picker_reset(struct picker *fp);
 
-static void _picker_move(struct picker *fp, int dir) {
+void picker_move(struct picker *fp, int dir) {
     int c = fp->cur + dir, h = fp->wh-2;
     fp->cur = c<0? 0 : c>=fp->num_tabs? fp->num_tabs-1 : c;
     c=fp->cur, fp->off = c<fp->off? c : c-fp->off>=h? c-h : fp->off;
@@ -32,7 +33,7 @@ static void _picker_find_next(struct picker *fp, char *name) {
     fp->cur = cur, fp->off = off;
     return;
 j:  fp->cur = fp->off = 0;
-    _picker_move(fp, pos);
+    picker_move(fp, pos);
 }
 
 void picker_update(struct picker *fp, int ch) {
@@ -45,12 +46,12 @@ void picker_update(struct picker *fp, int ch) {
         return;
     }
     switch (ch) {
-    case KEY_NAVUP:   case KEY_UP:    _picker_move(fp, -1); break;
-    case KEY_NAVDOWN: case KEY_DOWN:  _picker_move(fp, +1); break;
-    case KEY_NAVTOP:  case KEY_HOME:  _picker_move(fp, -fp->num_tabs); break;
-    case KEY_NAVEND:  case KEY_END:   _picker_move(fp, +fp->num_tabs); break;
-    case KEY_PPAGE:                   _picker_move(fp, -(fp->wh-2)); break;
-    case KEY_NPAGE:                   _picker_move(fp, +(fp->wh-2)); break;
+    case KEY_NAVUP:   case KEY_UP:    picker_move(fp, -1); break;
+    case KEY_NAVDOWN: case KEY_DOWN:  picker_move(fp, +1); break;
+    case KEY_NAVTOP:  case KEY_HOME:  picker_move(fp, -fp->num_tabs); break;
+    case KEY_NAVEND:  case KEY_END:   picker_move(fp, +fp->num_tabs); break;
+    case KEY_PPAGE:                   picker_move(fp, -(fp->wh-2)); break;
+    case KEY_NPAGE:                   picker_move(fp, +(fp->wh-2)); break;
     case KEY_MODE_FIND:
         input_reset(&fp->input);
         fp->is_searching = 1;
