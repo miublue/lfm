@@ -496,8 +496,8 @@ static inline void _get_term_size(void) {
 static void _list_tabs(void) {
     for (int i = 0; i < lfm.num_tabs; ++i)
         lfm.picker.tabs[lfm.picker.num_tabs++] = strdup(lfm.tabs[i].path);
-    lfm.picker.cur = lfm.cur_tab - lfm.tabs;
-    picker_move(&lfm.picker, 0);
+    getmaxyx(stdscr, lfm.picker.wh, lfm.picker.ww);
+    picker_move(&lfm.picker, lfm.cur_tab - lfm.tabs);
 }
 
 static void _update_picker(void) {

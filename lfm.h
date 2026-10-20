@@ -7,7 +7,7 @@
 #define _USE_COLOR 0
 #endif
 
-#define VERSION "1.0.2"
+#define VERSION "1.0.3"
 #define CTRL(c) ((c) & 0x1f)
 #define ALLOC_SIZE 512
 #define MIN(a, b) ((a) < (b)? (a) : (b))
