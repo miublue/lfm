@@ -18,9 +18,10 @@
 #define ATTR_FILE   0
 #define ATTR_STATUS A_REVERSE
 
-#define KEY_QUIT   'q'
-#define KEY_RELOAD 'r'
-#define KEY_SHELL  's'
+#define KEY_QUIT    'q'
+#define KEY_QUITALL 'Q'
+#define KEY_RELOAD  'r'
+#define KEY_SHELL   's'
 
 #define KEY_SELECT_FILE   ' '
 #define KEY_SELECT_ALL    CTRL('a'): case 'a'
